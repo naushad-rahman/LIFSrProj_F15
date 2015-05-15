@@ -1,0 +1,493 @@
+Cmp-Mod V01 Created by Cvpcb (2015-01-16 BZR 5376)-product   date = 3/26/2015 5:36:00 PM
+
+BeginCmp
+TimeStamp = /54EFC593;
+Reference = C1;
+ValeurCmp = C;
+IdModule  = Capacitors_SMD:C_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFC5E6;
+Reference = C2;
+ValeurCmp = C;
+IdModule  = Capacitors_SMD:C_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFC622;
+Reference = C3;
+ValeurCmp = C;
+IdModule  = Capacitors_SMD:C_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /55044EB6;
+Reference = C4;
+ValeurCmp = C;
+IdModule  = Capacitors_SMD:C_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFE573;
+Reference = C5;
+ValeurCmp = C;
+IdModule  = Capacitors_SMD:C_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFE484;
+Reference = C6;
+ValeurCmp = C;
+IdModule  = Capacitors_SMD:C_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFE5D3;
+Reference = C7;
+ValeurCmp = C;
+IdModule  = Capacitors_SMD:C_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /55044F41;
+Reference = C8;
+ValeurCmp = C;
+IdModule  = Capacitors_SMD:C_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F334D3;
+Reference = Q1;
+ValeurCmp = STN0214;
+IdModule  = teensy:STN0214;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F3354C;
+Reference = Q2;
+ValeurCmp = STN0214;
+IdModule  = teensy:STN0214;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F33607;
+Reference = Q3;
+ValeurCmp = STN0214;
+IdModule  = teensy:STN0214;
+EndCmp
+
+BeginCmp
+TimeStamp = /5502723B;
+Reference = Q4;
+ValeurCmp = BUT11A;
+IdModule  = Discret:TO220_VERT;
+EndCmp
+
+BeginCmp
+TimeStamp = /5512FF09;
+Reference = Q5;
+ValeurCmp = NPN;
+IdModule  = Discret:TO220_VERT;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F025ED;
+Reference = R1;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F02BB3;
+Reference = R2;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F03F86;
+Reference = R3;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F04A7E;
+Reference = R4;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F0161A;
+Reference = R5;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F02ABC;
+Reference = R6;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F03F7C;
+Reference = R7;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F04A74;
+Reference = R8;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFB8E7;
+Reference = R9;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFBE70;
+Reference = R10;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFBF10;
+Reference = R11;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /550442D8;
+Reference = R12;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFB912;
+Reference = R13;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFBE76;
+Reference = R14;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFBF16;
+Reference = R15;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /5504431B;
+Reference = R16;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /55027F7E;
+Reference = R17;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /550A1A2A;
+Reference = R18;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /550A11C7;
+Reference = R19;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /550A136E;
+Reference = R20;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /55105AFA;
+Reference = R21;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /55105C42;
+Reference = R22;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /55107184;
+Reference = R23;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /55105964;
+Reference = R24;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /55105B00;
+Reference = R25;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /55105C48;
+Reference = R26;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /55104588;
+Reference = R27;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /5510718A;
+Reference = R28;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /55104426;
+Reference = R29;
+ValeurCmp = R;
+IdModule  = teensy:RES_1W;
+EndCmp
+
+BeginCmp
+TimeStamp = /55130073;
+Reference = R30;
+ValeurCmp = R;
+IdModule  = Resistors_SMD:R_1206_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = /55130638;
+Reference = R31;
+ValeurCmp = Varable_Res;
+IdModule  = teensy:POT;
+EndCmp
+
+BeginCmp
+TimeStamp = /54FE17D0;
+Reference = TP1;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /54FE1798;
+Reference = TP2;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /54FE33BF;
+Reference = TP3;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /54FE5643;
+Reference = TP4;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5511477D;
+Reference = TP5;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /55136079;
+Reference = TP6;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513C28A;
+Reference = TP7;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /55135706;
+Reference = TP8;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513AB04;
+Reference = TP9;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /55135C92;
+Reference = TP10;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513ADF4;
+Reference = TP11;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /55139F30;
+Reference = TP12;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513C41B;
+Reference = TP13;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513C29A;
+Reference = TP14;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /55137624;
+Reference = TP15;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513C3C8;
+Reference = TP16;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513C43E;
+Reference = TP17;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513C49D;
+Reference = TP18;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513C992;
+Reference = TP19;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513CA0F;
+Reference = TP20;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513CA71;
+Reference = TP21;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /5513CD5B;
+Reference = TP22;
+ValeurCmp = Test_point;
+IdModule  = Connect:PINTST;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EFB148;
+Reference = U1;
+ValeurCmp = OP275;
+IdModule  = teensy:OpAmp;
+EndCmp
+
+BeginCmp
+TimeStamp = /54F03F76;
+Reference = U2;
+ValeurCmp = OP275;
+IdModule  = teensy:OpAmp;
+EndCmp
+
+BeginCmp
+TimeStamp = /54EF55E0;
+Reference = U3;
+ValeurCmp = TEENSY3.1;
+IdModule  = teensy:TEENSY3.1;
+EndCmp
+
+BeginCmp
+TimeStamp = /550A93FB;
+Reference = U4;
+ValeurCmp = EMCO_F40;
+IdModule  = teensy:EMCO_F40;
+EndCmp
+
+EndListe
