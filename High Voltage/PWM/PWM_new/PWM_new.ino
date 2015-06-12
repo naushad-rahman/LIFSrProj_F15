@@ -15,8 +15,8 @@ input or output. I believe this is always true for arduino but maybe for teensy 
 //int pwmPin4 = 6;//HV control
 
 //new board
-int pwmPin1 = 6;
-int pwmPin2 = 5;
+int pwmPin1 = 5;
+int pwmPin2 = 6;
 int pwmPin3 = 4;
 int pwmPin4 = 3;//HVcontrol
 
@@ -69,7 +69,7 @@ void loop()
         // Flowing/Testing
         analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-83)/100);
         analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-83)/100);
-        analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-100)/100);
+        analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-94)/100);
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);
         break;
       case 51:
