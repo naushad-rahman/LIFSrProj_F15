@@ -1,4 +1,3 @@
-
 /* OVERVIEW
  Purpose: This samples the two voltages and then performs the DSP to caclulate magnitude and phase
  Microcontroller: Teensy 3.1
@@ -6,7 +5,7 @@
   6/4/2014 
 */
 
-//#include "C:\Program Files (x86)\Arduino\libraries\ADC\ADC-master\ADC.h"
+#include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
 
 
 // Definitions
@@ -15,7 +14,7 @@
 #define TimerInterruptInMicroSeconds 25 // This is for 40 kHz
 
 
-#define CarrierFrequency 190 // in hertz
+#define CarrierFrequency 1e3
 
 // Can go from 10 to 20 here, from 2 kHz sampling to 4 kHz sampling
 #define ISR_counter_loop_reset 40 // 1 kHz sampling of the signal
@@ -67,12 +66,10 @@ float current_q_mod;
 #define lp_fir_length 32
 
 float x_0[bp_fir_length];
-float x_1[bp_fir_length];
 
 float x_0_i[lp_fir_length];
 float x_0_q[lp_fir_length];
-float x_1_i[lp_fir_length];
-float x_1_q[lp_fir_length];
+
 
 float real_ip = 0;
 float real_ip_total = 0;
@@ -94,7 +91,6 @@ int min_1 = 65536;
 // Fpass2 = 200
 // Fstop2 = 240  
 // Density Factor 20
-//fda tool in matlab
 float bp_filter_coeff[bp_fir_length] = {
 -0.0068805036135017872,
  0.0061070485971868038,
@@ -129,6 +125,48 @@ float bp_filter_coeff[bp_fir_length] = {
  0.0061070485971868038,
 -0.0068805036135017872
 };
+//FDAtool Bandpass parameters
+//Order = 31
+// Fs =2100
+// Fstop1 = 930
+// Fpass1 = 990
+// Fpass2 = 1010
+// Fstop2 = 1050
+//Density = 20
+// fdatool in matlab
+/*{
+-0.0385626741831516,
+0.0243321731032428,
+-0.0306418781682252,
+0.0368656499455263,
+-0.0426333194742660,
+0.0475586702729681,
+-0.0512993260783385,
+0.0535042653011438,
+-0.0539034139355538,
+0.0523335298254837,
+-0.0487363284803318,
+0.0431377288844155,
+-0.0356877313177569,
+0.0267196488109811,
+-0.0165171825506038,
+0.00559602625109013,
+0.00559602625109013,
+-0.0165171825506038,
+0.0267196488109811,
+-0.0356877313177569,
+0.0431377288844155,
+-0.0487363284803318,
+0.0523335298254837,
+-0.0539034139355538,
+0.0535042653011438,
+-0.0512993260783385,
+0.0475586702729681,
+-0.0426333194742660,
+0.0368656499455263,
+-0.0306418781682252,
+0.0243321731032428,
+-0.0385626741831516};*/
 
 
 // Coefficients for FIR low-pass filter
@@ -207,7 +245,6 @@ IntervalTimer timer0;
 // For sending bytes
 char * b;
 
-//Modulatioin and Demodulation
 void pre_compute_tables() {
   // This function will precompute the cos and sin tables used in the rest of the program
   for(int precompute_counter = 0; precompute_counter < pre_compute_length; precompute_counter++){
@@ -219,44 +256,50 @@ void pre_compute_tables() {
 } //pre_compute_tables
 
 
-void execute_DSP() {
-  bp_fifo_num++;  
+float execute_BPF(float input_signal) {
+
   if (bp_fifo_num >= bp_fir_length) bp_fifo_num = 0;
 
-   x_0[bp_fifo_num] = (float) (value[1] - value[0]);//Voltage divider
-   x_1[bp_fifo_num] = (float) (value[0] - 32768);  // 3278 is half a 12 bit ADC
-
+   x_0[bp_fifo_num] = input_signal;
+   bp_fifo_num++; 
+  
    // Band pass filter of incoming data
   float y_0 = x_0[bp_fifo_num] * bp_filter_coeff[0];
-  float y_1 = x_1[bp_fifo_num] * bp_filter_coeff[1];
   
   for(int fir_counter = 1; fir_counter < bp_fir_length; fir_counter++){
-    int fir_index = bp_fifo_num + fir_counter;
+      int fir_index = bp_fifo_num + fir_counter;
     if (fir_index >= bp_fir_length) {
       fir_index -= bp_fir_length;
     }
     y_0 += x_0[fir_index] * bp_filter_coeff[fir_counter];
-    y_1 += x_1[fir_index] * bp_filter_coeff[fir_counter];
-  }
+  
+  } 
+  
+  return y_0; 
+//   Serial.print("\r");
+//   Serial.print("y: ");
+//   Serial.println(y_0, 9);
+  
 
+  
+}
+
+
+void execute_LPF(float y){
   current_i_mod = i_mod_pre[phase_counter];
   current_q_mod = q_mod_pre[phase_counter];
-
+  
   // Demodulation of the signal
-  x_0_i[lp_fifo_num] = (y_0 * current_i_mod);
-  x_0_q[lp_fifo_num] = (y_0 * current_q_mod);
-  x_1_i[lp_fifo_num] = (y_1 * current_i_mod);
-  x_1_q[lp_fifo_num] = (y_1 * current_q_mod); 
+  x_0_i[lp_fifo_num] = (y * current_i_mod);
+  x_0_q[lp_fifo_num] = (y * current_q_mod); 
 
+  if (lp_fifo_num >= lp_fir_length) lp_fifo_num = 0;
   lp_fifo_num++;  
-  if (lp_fifo_num >= lp_fir_length) lp_fifo_num = 0;//circular buffer
 
   // Low pass filter of demodulated signal
   float y_0_i = x_0_i[lp_fifo_num] * lp_filter_coeff[0];
   float y_0_q = x_0_q[lp_fifo_num] * lp_filter_coeff[0];
-  float y_1_i = x_1_i[lp_fifo_num] * lp_filter_coeff[0];
-  float y_1_q = x_1_q[lp_fifo_num] * lp_filter_coeff[0];
-
+ 
   for(int fir_counter = 1; fir_counter < lp_fir_length; fir_counter++){
     int fir_index = lp_fifo_num + fir_counter;
     if (fir_index >= lp_fir_length) {
@@ -264,17 +307,19 @@ void execute_DSP() {
     }
     y_0_i += x_0_i[fir_index] * lp_filter_coeff[fir_counter];
     y_0_q += x_0_q[fir_index] * lp_filter_coeff[fir_counter];
-    y_1_i += x_1_i[fir_index] * lp_filter_coeff[fir_counter];
-    y_1_q += x_1_q[fir_index] * lp_filter_coeff[fir_counter];
   }  
    
-  real_ip = y_0_i * y_1_i + y_0_q * y_1_q; //Square coordinates
-  imag_ip = y_0_q * y_1_i - y_0_i * y_1_q;
+  Serial.print("\n\r y_i: ");
+  Serial.println(y_0_i, 8);
+  Serial.print("\r y_q: ");
+  Serial.println(y_0_q, 8);
+  
+ 
   y_0_squared = y_0_i * y_0_i + y_0_q * y_0_q; 
-  y_1_squared = y_1_i * y_1_i + y_1_q * y_1_q;
+  
+  Serial.print("\n\rMag of y_0: ");
+  Serial.println(y_0_squared, 8);
 
-//  float mag = sqrt((real_ip * real_ip + imag_ip * imag_ip) / y_0_squared;
-//sqart(x^2+yj^2)
   mag = sqrt(((float) real_ip * (float) real_ip + (float) imag_ip * (float) imag_ip)) / ((float) y_0_squared);
   mag_total += mag;
   calc_mag = mag_total / NumInBlock;
@@ -282,22 +327,24 @@ void execute_DSP() {
   real_ip_total += real_ip;
   imag_ip_total += imag_ip;
   calc_phase = -atan2(imag_ip_total, real_ip_total);
-}
 
+
+
+
+}
 
 void ISR_repeat() {
   // Calculation of loop for generating signal to output on DAC
-  analogWrite(A14, out_val_pre[phase_counter]);//outputs sine wave at carrier frequency
+  analogWrite(A14, out_val_pre[phase_counter]);
+  
 
   // ISR counter reset and increment
   if (ISR_counter >= ISR_counter_loop_reset)
   {
     ISR_counter = 1;
-  //    adc->startSingleDifferential(A10,A11, ADC_0); // These lines get the measurements started
-  //    adc->startSingleDifferential(A12,A13, ADC_1);
-    adc->startSingleRead(A1, ADC_0);
-    adc->startSingleRead(A3, ADC_1);
-    ADC_reading = true;
+  //  adc->startSingleRead(A1, ADC_0);
+  //  adc->startSingleRead(A3, ADC_1);
+  //  ADC_reading = true;
     current_i_mod = i_mod_pre[phase_counter];
     current_q_mod = q_mod_pre[phase_counter];
   }
@@ -307,16 +354,12 @@ void ISR_repeat() {
   phase_counter++;
   if (phase_counter >= pre_compute_length) phase_counter = 0;
   
-
-//For their cart
   // Now check the digital distance counter
   int val = digitalRead(DistanceCounterPIN);
   if (val != DistanceCountState) {
     DistanceCount++;
     DistanceCountState = val;
   }
-  
-  
 } //ISR_repeat
 
 void timer_setup() { //setup interrupts
@@ -330,27 +373,10 @@ void timer_stop() {
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
-//  analogReference(DEFAULT); //range 0..3.3v - note this voltage regulator is noisy
-//  analogReference(EXTERNAL);
 
 // Analog inputs  
-    pinMode(A1, INPUT);
-    pinMode(A3, INPUT);
-
-// Digital outputs to switch resistors  
-//Mux  
-    pinMode(D0, OUTPUT);
-    pinMode(D1, OUTPUT);
-    pinMode(D2, OUTPUT);
-
-// Digital input for counter  
-// not needed  
-    pinMode(DistanceCounterPIN, INPUT);
-    DistanceCountState = digitalRead(DistanceCounterPIN);
-
-//  adc->setReference(ADC_REF_INTERNAL, ADC_0); // change all 3.3 to 1.2 if you change the reference
-//  adc->setReference(ADC_REF_INTERNAL, ADC_1);
-
+    pinMode(A0, INPUT);
+  
   adc->setReference(ADC_REF_EXTERNAL, ADC_0); // change all 3.3 to 1.2 if you change the reference
   adc->setReference(ADC_REF_EXTERNAL, ADC_1);
 
@@ -358,6 +384,7 @@ void setup() {
   //adc->enablePGA(4, ADC_0);
   adc->setAveraging(32, ADC_0); // set number of averages
   adc->setResolution(16, ADC_0); // set bits of resolution
+  
 
   //adc->enablePGA(5, ADC_1);
   adc->setAveraging(32, ADC_1); // set number of averages
@@ -375,134 +402,44 @@ void setup() {
   Serial2.flush();
 
 
-  Serial.begin(BAUD_RATE);
   delay(5000);  //Give some time to start terminal on computer to catch serial data
   pre_compute_tables();
-  Serial.flush();
-  Serial.print("Hello! This is the DAQ Signal Processing program.\n");
+  Serial.print("Hello! This is the DAQ and DSP program.\n");
   delay(1000);
   sinceStartmillis = 0;
   timer_setup(); //turn on timer  
 } //setup
 
 
-//Main
+
 // This loop happens every ms or at a 1 kHz rate
+
+bool first = true;
+float signal;
+float signal_bpf;
+int coefficient_count = 31;
+
+void runTest(){
+//Test with Dirac delta function
+   if(first){
+    signal = 1.0;
+    first = false;
+  }else{
+    signal = 0.0;
+  }
+
+  signal_bpf = execute_BPF(signal);
+  execute_LPF(signal_bpf);
+  
+  if(coefficient_count-- == 0){
+    delay(1000000);
+  }
+
+}
+
 void loop() {
-  while (!ADC_reading) {
-    digitalWrite(LED_PIN, LOW);
-  }
-  digitalWrite(LED_PIN, HIGH);
-
-  counter++;
-  
-  CyclesInState++;
-  switch (current_state) {
-    case 0:
-          // 10 MOhm resistor - S4
-          digitalWrite(D0, HIGH);
-          digitalWrite(D1, HIGH);
-          digitalWrite(D2, LOW);
-          break;
-    case 1:
-          // 100 kOhm resistor - S3
-          digitalWrite(D0, LOW);
-          digitalWrite(D1, HIGH);
-          digitalWrite(D2, LOW);
-          break;
-    case 2:
-          // 910 Ohm resistor + 100 Ohm on resistance - S2
-          digitalWrite(D0, HIGH);
-          digitalWrite(D1, LOW);
-          digitalWrite(D2, LOW);
-          break;
-    default:
-          digitalWrite(D0, LOW);
-          digitalWrite(D1, LOW);
-          digitalWrite(D2, LOW);
-          break;
-  }
-
-  execute_DSP();
-  
-  if (CyclesInState <= PreCalculateCycles) {
-    NumInBlock = 0;
-    mag_total = 0;
-    real_ip_total = 0;
-    imag_ip_total = 0;
-    max_0 = -1;
-    max_1 = -1;
-    min_0 = 65536;
-    min_1 = 65536;
-  }
-  else {
-    NumInBlock++;
-    if (NumInBlock == NumCalculatedAverages) {
-      mag_result[current_state] = calc_mag;
-      phase_result[current_state] = calc_phase;
-      NumInBlock = 0;
-      mag_total = 0;
-      real_ip_total = 0;
-      imag_ip_total = 0;
-    }
-  }
-  
-  if (CyclesInState == StateSwitchingCycles) {   
-    CyclesInState = 0;
-    switch (current_state) {
-      case 0:
-          current_state = 1;
-          break;
-      case 1:
-          current_state = 2;
-          break;
-      case 2:
-          if (mag_result[0] >= 0.1) {
-            final_mag = 10000000 * mag_result[0];
-            final_phase = phase_result[0];
-          }
-          else if (mag_result[1] >= 0.1) {
-            final_mag = 100000 * mag_result[1];
-            final_phase = phase_result[1];
-          }
-          else {
-            final_mag = 1000 * mag_result[2];
-            final_phase = phase_result[2];
-          }
-//          Serial.print(counter, DEC);
-//          Serial.write('\t');
-//          Serial.print(DistanceCount, DEC);
-//          Serial.write('\t');
-//          Serial.print(final_mag, 8);
-//          Serial.write('\t');
-//          Serial.print(final_phase, 8);
-//          Serial.write('\n');
-
-          Serial2.print("D");
-          Serial2.print(sinceStartmillis, DEC);
-          Serial2.write('_');
-          Serial2.print(DistanceCount, DEC);
-          Serial2.write('_');
-          Serial2.print(final_mag, 6);
-          Serial2.write('_');
-          Serial2.print(final_phase, 6);
-          Serial2.write('\n');
-          
-          current_state = 0;
-          break;
-      default:
-          current_state = 0;
-    }
-  }
-
-
-  if ((counter >= MaxNumSamples) & (MaxNumSamples != 0)) timer_stop(); //Stop
-
-  value[0] = adc->readSingle(ADC_0); // These lines then get the simultaneous reads of the measurements
-  value[1] = adc->readSingle(ADC_1); 
-  ADC_reading = false;
-  value[0] &= 0x0000FFFF; // This is because for 16-bit reads, the program will automatically try to 2's complement the numbers
-  value[1] &= 0x0000FFFF;
-  
+  runTest();
+  //  signal = analogRead(A0); //Sample rate is 10kHz (Documentation online) 
 
 } //loop
+
