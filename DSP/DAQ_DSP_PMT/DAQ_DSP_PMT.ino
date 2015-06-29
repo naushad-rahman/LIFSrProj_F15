@@ -1,8 +1,7 @@
 /* OVERVIEW
- Purpose: This samples the two voltages and then performs the DSP to caclulate magnitude and phase
- Microcontroller: Teensy 3.1
-  Brian Mazzeo
-  6/4/2014 
+ Purpose: This sampes the voltage from the PMT and then performs the DSP
+  Senior Project: LIF
+  6/15/2015
 */
 
 #include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
@@ -83,6 +82,13 @@ int min_0 = 65536;
 int max_1 = -1;
 int min_1 = 65536;
 
+#define BUFFER_LENGTH 100
+
+float volatile buffer_in[BUFFER_LENGTH];
+float volatile *p; 
+int time; 
+int ptr_index;
+
 // Coefficients for FIR band-pass filter (single-precision floating)
 // Order: 31
 // Fs = 1000
@@ -91,7 +97,7 @@ int min_1 = 65536;
 // Fpass2 = 200
 // Fstop2 = 240  
 // Density Factor 20
-float bp_filter_coeff[bp_fir_length] = {
+float bp_filter_coeff[bp_fir_length] = /*{
 -0.0068805036135017872,
  0.0061070485971868038,
 -0.02114810049533844  ,
@@ -124,7 +130,7 @@ float bp_filter_coeff[bp_fir_length] = {
 -0.02114810049533844  ,
  0.0061070485971868038,
 -0.0068805036135017872
-};
+};*/
 //FDAtool Bandpass parameters
 //Order = 31
 // Fs =2100
@@ -134,7 +140,7 @@ float bp_filter_coeff[bp_fir_length] = {
 // Fstop2 = 1050
 //Density = 20
 // fdatool in matlab
-/*{
+{
 -0.0385626741831516,
 0.0243321731032428,
 -0.0306418781682252,
@@ -166,7 +172,7 @@ float bp_filter_coeff[bp_fir_length] = {
 0.0368656499455263,
 -0.0306418781682252,
 0.0243321731032428,
--0.0385626741831516};*/
+-0.0385626741831516};
 
 
 // Coefficients for FIR low-pass filter
@@ -231,14 +237,7 @@ int diff_1[3] = {0, 0, 0};
 float final_mag = 0;
 float final_phase = 0;
 
-// Finite State Machine
-int current_state = 0;
 
-// Flag
-boolean ADC_reading = false;
-
-// This is necessary for the ADC library
-ADC *adc = new ADC(); // adc object
 
 IntervalTimer timer0;
 
@@ -271,21 +270,18 @@ float execute_BPF(float input_signal) {
     if (fir_index >= bp_fir_length) {
       fir_index -= bp_fir_length;
     }
+
     y_0 += x_0[fir_index] * bp_filter_coeff[fir_counter];
-  
+
   } 
   
   return y_0; 
-//   Serial.print("\r");
-//   Serial.print("y: ");
-//   Serial.println(y_0, 9);
-  
 
   
 }
 
 
-void execute_LPF(float y){
+float execute_LPF(float y){
   current_i_mod = i_mod_pre[phase_counter];
   current_q_mod = q_mod_pre[phase_counter];
   
@@ -309,61 +305,59 @@ void execute_LPF(float y){
     y_0_q += x_0_q[fir_index] * lp_filter_coeff[fir_counter];
   }  
    
-  Serial.print("\n\r y_i: ");
-  Serial.println(y_0_i, 8);
-  Serial.print("\r y_q: ");
-  Serial.println(y_0_q, 8);
+  //Serial.print("\n\r y_i: ");
+  //Serial.println(y_0_i, 8);
+  //Serial.print("\r y_q: ");
+  //Serial.println(y_0_q, 8);
   
  
   y_0_squared = y_0_i * y_0_i + y_0_q * y_0_q; 
   
-  Serial.print("\n\rMag of y_0: ");
-  Serial.println(y_0_squared, 8);
+  *(ptr_index+p) = y_0_squared; 
 
-  mag = sqrt(((float) real_ip * (float) real_ip + (float) imag_ip * (float) imag_ip)) / ((float) y_0_squared);
-  mag_total += mag;
-  calc_mag = mag_total / NumInBlock;
+  ptr_index++; 
+  
 
-  real_ip_total += real_ip;
-  imag_ip_total += imag_ip;
-  calc_phase = -atan2(imag_ip_total, real_ip_total);
-
-
-
+  return y_0_squared;
+  
+ 
 
 }
 
-void ISR_repeat() {
-  // Calculation of loop for generating signal to output on DAC
-  analogWrite(A14, out_val_pre[phase_counter]);
+float signal;
+float signal_bpf;
+
+void ISR() {
   
+  signal = analogRead(A0); //Sample rate is 10kHz (Documentation online) 
+  signal_bpf = execute_BPF(signal);
+  execute_LPF(signal_bpf);
+  
+  Serial.print("\r\n");
+  Serial.println("signal: ");
+  Serial.println(signal,5);
 
   // ISR counter reset and increment
   if (ISR_counter >= ISR_counter_loop_reset)
   {
-    ISR_counter = 1;
-  //  adc->startSingleRead(A1, ADC_0);
-  //  adc->startSingleRead(A3, ADC_1);
-  //  ADC_reading = true;
+    ISR_counter = 1; 
     current_i_mod = i_mod_pre[phase_counter];
     current_q_mod = q_mod_pre[phase_counter];
   }
   else {
     ISR_counter++;
   }
+  
   phase_counter++;
   if (phase_counter >= pre_compute_length) phase_counter = 0;
   
-  // Now check the digital distance counter
-  int val = digitalRead(DistanceCounterPIN);
-  if (val != DistanceCountState) {
-    DistanceCount++;
-    DistanceCountState = val;
-  }
-} //ISR_repeat
+  // Calculation of loop for generating signal to output on DAC
+  analogWrite(A14, out_val_pre[phase_counter]);
+
+} //ISR
 
 void timer_setup() { //setup interrupts
-  timer0.begin(ISR_repeat, TimerInterruptInMicroSeconds);  
+  timer0.begin(ISR, TimerInterruptInMicroSeconds);  
 } //timer_setup() 
   
 void timer_stop() {
@@ -375,29 +369,14 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
 
 // Analog inputs  
-    pinMode(A0, INPUT);
+  pinMode(A0, INPUT);
   
-  adc->setReference(ADC_REF_EXTERNAL, ADC_0); // change all 3.3 to 1.2 if you change the reference
-  adc->setReference(ADC_REF_EXTERNAL, ADC_1);
-
-  
-  //adc->enablePGA(4, ADC_0);
-  adc->setAveraging(32, ADC_0); // set number of averages
-  adc->setResolution(16, ADC_0); // set bits of resolution
-  
-
-  //adc->enablePGA(5, ADC_1);
-  adc->setAveraging(32, ADC_1); // set number of averages
-  adc->setResolution(16, ADC_1); // set bits of resolution
-
-  // always call the compare functions after changing the resolution!
-  //adc->enableCompare(1.0/3.3*adc->getMaxValue(ADC_0), 0, ADC_0); // measurement will be ready if value < 1.0V
-  //adc->enableCompareRange(1.0*adc->getMaxValue(ADC_1)/3.3, 2.0*adc->getMaxValue(ADC_1)/3.3, 0, 1, ADC_1); // ready if value lies out of [1.0,2.0] V
-
+  p = buffer_in; 
+  ptr_index = 0; 
+ 
   analogWriteResolution(12); // Set up DAC resolution
   
-//  analogReadResolution(NumADCbits); //try 12 bits on analog reads. Should be able to do 16 bits on A10 & A11
-//  analogReadAveraging(NumSamplesAverageInADC);
+  analogReadResolution(NumADCbits); //try 12 bits on analog reads. Should be able to do 16 bits on A10 & A11
   Serial2.begin(HW_BAUD_RATE);
   Serial2.flush();
 
@@ -412,11 +391,9 @@ void setup() {
 
 
 
-// This loop happens every ms or at a 1 kHz rate
 
 bool first = true;
-float signal;
-float signal_bpf;
+
 int coefficient_count = 31;
 
 void runTest(){
@@ -437,9 +414,30 @@ void runTest(){
 
 }
 
+// This loop happens every ms or at a 1 kHz rate
 void loop() {
-  runTest();
-  //  signal = analogRead(A0); //Sample rate is 10kHz (Documentation online) 
-
+  float sum = 0; 
+  int average = 0; 
+  if(ptr_index > (BUFFER_LENGTH -1) ){
+      ptr_index = 0; 
+      for(int i = 0; i < BUFFER_LENGTH; i++){
+         sum += buffer_in[i]; 
+      }
+      average = int(sum); 
+      time = micros();
+      
+    unsigned char serialBytes[8]; 
+    serialBytes[0] = (time >> 24) & 0xff;
+    serialBytes[1] = (time >> 16) & 0xff;
+    serialBytes[2] = (time >> 8) & 0xff; 
+    serialBytes[3] = time & 0xff; 
+    serialBytes[4] = (average >> 24) & 0xff;
+    serialBytes[5] = (average >> 16) & 0xff;
+    serialBytes[6] = (average >> 8) & 0xff; 
+    serialBytes[7] = average & 0xff; 
+    Serial.write(serialBytes,8); 
+  
+  }
+  
 } //loop
 
