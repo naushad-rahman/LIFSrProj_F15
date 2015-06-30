@@ -1,3 +1,4 @@
+
 /* OVERVIEW
  Purpose: This samples the two voltages and then performs the DSP to caclulate magnitude and phase
  Microcontroller: Teensy 3.1
@@ -5,7 +6,7 @@
   6/4/2014 
 */
 
-#include <ADC.h>
+//#include "C:\Program Files (x86)\Arduino\libraries\ADC\ADC-master\ADC.h"
 
 
 // Definitions
