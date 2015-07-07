@@ -1,0 +1,14 @@
+---------------------------------------------------------------------------
+NCDrill File Report For: Laser_Driver.PcbDoc   6/26/2015  1:09:53 PM
+---------------------------------------------------------------------------
+
+Layer Pair : Top Layer to Bottom Layer
+ASCII RoundHoles File : Laser_Driver.TXT
+
+Tool         Hole Size           Hole Type     Hole Count Plated       Tool Travel
+---------------------------------------------------------------------------
+T1        39.37mil (1mm)           Round          25               3.93 Inch (99.73 mm)
+---------------------------------------------------------------------------
+Totals                                            25               3.93 Inch (99.73 mm)
+
+Total Processing Time (hh:mm:ss) : 00:00:00
