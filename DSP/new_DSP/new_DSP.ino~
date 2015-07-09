@@ -6,7 +6,7 @@ LIF Senior Project
 #include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
 
 #define BAUD_RATE 115200
-#define TIMER_INT_MICROS 200
+#define TIMER_INT_MICROS 100
 #define LENGTH_OF_DAC 10
 #define LENGTH_OF_SIGNAL 37
 
@@ -15,7 +15,7 @@ LIF Senior Project
 int in_array[LENGTH_OF_SIGNAL]; 
 float volatile after_BPF[LENGTH_OF_SIGNAL]; 
 float volatile after_cos_mult[LENGTH_OF_SIGNAL];
-int volatile after_LPF;
+float volatile after_LPF[LENGTH_OF_SIGNAL];
 
 
 IntervalTimer timer0;
@@ -23,51 +23,21 @@ int dac_lut[LENGTH_OF_DAC];
 float twopi = 3.14159265359 * 2;
 
 int j; 
+  int k; 
+
 int volatile n_samp; 
 int counter; 
-int time;
 bool volatile LP_Flag = false;
 int LPF_counter;
 float correction_factor; 
 
-float bp_filter_coeff[N_FILTER_LENGTH] = {
- 0.000313, 
-0.000472, 
-0.000426, 
--0.000000, 
--0.000941, 
--0.002438, 
--0.004382, 
--0.006499, 
--0.008370, 
--0.009499, 
--0.009417, 
--0.007804, 
--0.004587, 
-0.000000, 
-0.005424, 
-0.010927, 
-0.015665, 
-0.018868, 
-0.020000, 
-0.018868, 
-0.015665, 
-0.010927, 
-0.005424, 
-0.000000, 
--0.004587, 
--0.007804, 
--0.009417, 
--0.009499, 
--0.008370, 
--0.006499, 
--0.004382, 
--0.002438, 
--0.000941, 
--0.000000, 
-0.000426, 
-0.000472, 
-0.000313};
+float bp_filter_coeff[N_FILTER_LENGTH] = {0.000119, -0.000248, -0.001115, -0.002123, -0.002464, 
+           -0.001282, 0.001674, 0.005529, 0.008370, 0.008080, 
+           0.003597, -0.004103, -0.012010, -0.016287, -0.014199, 
+           -0.005745, 0.005983, 0.016050, 0.020000, 0.016050, 
+           0.005983, -0.005745, -0.014199, -0.016287, -0.012010, 
+           -0.004103, 0.003597, 0.008080, 0.008370, 0.005529, 
+           0.001674, -0.001282, -0.002464, -0.002123, -0.001115, -0.000248, 0.000119};
 
 
 // Coefficients for FIR low-pass filter
@@ -103,9 +73,13 @@ void ISR(){
   analogWrite(A14, dac_lut[j]); 
   
   //Fill up input fromm ADC
-   in_array[n_samp] = analogRead(A0);
-   execute_BPF();
-
+   in_array[k] = analogRead(A0);
+   k++;
+   if(k >= N_FILTER_LENGTH){
+     k = 0;
+      execute_BPF();
+ 
+   }
 
 
   
@@ -203,6 +177,7 @@ void setup() {
   analogReadResolution(12); 
   
   j = 0; 
+  k = 0; 
   n_samp = 0; 
   counter = 0; 
   LPF_counter = 0; 
@@ -226,34 +201,33 @@ void setup() {
 //-----------------------------------------------------------------------
 
 void loop() {
+ int average_out = 0; 
 
   if(LP_Flag){
 
-    
+    //int time = micros();
     execute_demod();
   //Serial.print("\n\r After_cos_mult: ");
   //Serial.print(after_cos_mult[n_samp]);
 
-    after_LPF = (int) execute_LPF();
-    after_LPF = after_LPF/10;
+    after_LPF[LPF_counter] = execute_LPF();
+    
 //Serial.print("\n\r after_LPF: ");
 //Serial.println(after_LPF[LPF_counter], 5);
- //Serial.print("\n\r Average: "); 
- //   Serial.print(after_LPF);
-    
-    time = micros();
-      
-    unsigned char serialBytes[8]; 
-    serialBytes[0] = (time >> 24) & 0xff;
-    serialBytes[1] = (time >> 16) & 0xff;
-    serialBytes[2] = (time >> 8) & 0xff; 
-    serialBytes[3] = time & 0xff; 
-    serialBytes[4] = (after_LPF >> 24) & 0xff;
-    serialBytes[5] = (after_LPF >> 16) & 0xff;
-    serialBytes[6] = (after_LPF >> 8) & 0xff; 
-    serialBytes[7] = after_LPF & 0xff; 
-    Serial.write(serialBytes,8);
+  
+    LPF_counter++; 
+    if(LPF_counter >= N_FILTER_LENGTH){
+
+      LPF_counter = 0; 
+      for(int i = 0; i < N_FILTER_LENGTH; i++){
+        average_out += after_LPF[i];
  
+       }
+    Serial.print("\n\r Average: "); 
+    Serial.print(average_out);
+      
+    }
+
   }
   
 }
