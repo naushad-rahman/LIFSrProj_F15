@@ -254,14 +254,15 @@ void execute_BPF() {
       fir_index -= N_FILTER_LENGTH;
     }
     after_BPF[n_samp] += in_array[fir_index] * bp_filter_coeff[fir_counter];
-  Serial.print("\n\r after_BPF: ");
-  Serial.print(after_BPF[n_samp]);
+  
   }  
   //Serial.print("\n\r n_samp: ");
   //Serial.print(n_samp);
   //delay(1000);
-  //Serial.print("\n\rafter_BPF: ");
-  //Serial.print(after_BPF[n_samp]);
+  Serial.print("\n\rafter_BPF: ");
+  Serial.println(after_BPF[n_samp], 5);
+ 
+  
 }
 //-----------------------------------------------------------------
 
@@ -276,14 +277,15 @@ void ISR(){
      in_array[n_samp] = test_signal[k];
   //*****************************************
   execute_BPF();
-
+   Serial.print("\n\rinput_signal: ");
+  Serial.print(in_array[n_samp]);
 
   n_samp++;
+  k ++;
   
   // Set up ADC and Filter
   if(n_samp >= LENGTH_OF_SIGNAL){
     n_samp = 0; 
-    //LP_Flag = true; 
   }
 
 }
@@ -294,11 +296,13 @@ void timer_setup() { //setup interrupts
 } //timer_setup() 
 
 void setup() {
- analogWriteResolution(12); // Set up DAC resolution
+  
+  n_samp = 0; 
+  k = 0; 
  Serial.begin(BAUD_RATE);
   Serial.flush();
   delay(5000); 
-  LUT(); 
+  timer_setup();
   Serial.print("\n\rHello! Right now we are testing the BPF");
 
 }
