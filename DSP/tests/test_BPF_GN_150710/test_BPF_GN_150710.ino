@@ -1,4 +1,16 @@
-
+/*
+ * Use simulated data and apply bandpass filter with normalized coefficients and zero-phase.
+ * 
+ * Key variables:
+ * 
+ *   test_signal - array with simulated data
+ *   in_array - buffer containing 37 samples consisting of the current and previous 36 samples
+ *   after_bp - array containing the current and previous 36 samples passed through the bandpass filter
+ *   index_test_signal - index of current value from test_signal
+ *   index_in_array - index of current value of in_array and after_bp
+ * 
+ * 
+ */
 
 //#include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
 #include "/Users/nordin/Documents/Arduino/libraries/ADC-master/ADC.h"
@@ -7,10 +19,8 @@
 #define TIMER_INT_MICROS 200
 #define LENGTH_OF_DAC 10
 #define LENGTH_OF_SIGNAL 37
-#define LENGTH_OF_TEST_SIGNAL 1000
-
 #define N_FILTER_LENGTH 37
-
+#define LENGTH_OF_TEST_SIGNAL 1000
 
 float bp_filter_coeff[N_FILTER_LENGTH] = {
            0.000119, -0.000248, -0.001115, -0.002123, -0.002464, 
@@ -230,63 +240,52 @@ IntervalTimer timer0;
 int dac_lut[LENGTH_OF_DAC]; 
 float twopi = 3.14159265359 * 2;
 
-int volatile k; // For testing
-int volatile n_samp; 
+int volatile index_test_signal;
+int volatile index_in_array;
 
-int n_mid_coef = 21; //(N_FILTER_LENGTH-1)/2;
+int n_mid_coef = 21; //should be (N_FILTER_LENGTH-1)/2, but this works. Needs figured out why
 
-
-//----------------------------------------
+//-----------------------------------------------------------------
 void LUT(){
    for(int i = 0; i < LENGTH_OF_DAC; i++){
      dac_lut[i] = (int) ((cos(twopi*((float) i)/ LENGTH_OF_DAC) + 1)*2050);   
    }
 }
-//----------------------------------------------------------
+
+//-----------------------------------------------------------------
 void execute_BPF() {
-  after_BPF[n_samp] = in_array[n_samp] * bp_filter_coeff[0];
-  
-  
-  for(int fir_counter = 1; fir_counter < N_FILTER_LENGTH; fir_counter++){
-    int fir_index = n_samp + fir_counter;
-    if (fir_index >= N_FILTER_LENGTH) {
-      fir_index -= N_FILTER_LENGTH;
+  after_BPF[index_in_array] = in_array[index_in_array] * bp_filter_coeff[0];
+  for(int fir_coef_index = 1; fir_coef_index < N_FILTER_LENGTH; fir_coef_index++){
+    int fir_delayline_index = index_in_array + fir_coef_index;
+    if (fir_delayline_index >= N_FILTER_LENGTH) {
+      fir_delayline_index -= N_FILTER_LENGTH;
     }
-    after_BPF[n_samp] += in_array[fir_index] * bp_filter_coeff[fir_counter];
+    after_BPF[index_in_array] += in_array[fir_delayline_index] * bp_filter_coeff[fir_coef_index];
   }  
 }
 
 //-----------------------------------------------------------------
 void ISR(){
-  //***************************************
-  // Test with a made up PMT Signal
-  if(k >= LENGTH_OF_TEST_SIGNAL){
-      k = 0; 
-  }
-  in_array[n_samp] = test_signal[k];
-  //*****************************************
+  in_array[index_in_array] = test_signal[index_test_signal]; // Test with a simulated PMT Signal
   execute_BPF();
-  Serial.print(in_array[n_samp]);
-  Serial.print(",");
-  int zero_phase_index = n_samp - n_mid_coef;
+  // Write comma separated simulated value and zero-phase bandpass filtered value to serial
+  Serial.print(in_array[index_in_array]); Serial.print(",");
+  int zero_phase_index = index_in_array - n_mid_coef;
   if (zero_phase_index < 0) zero_phase_index += N_FILTER_LENGTH;
   Serial.println(after_BPF[zero_phase_index], 5);
-
-  n_samp++;
-  k++;
-  
-  // Set up ADC and Filter
-  if(n_samp >= LENGTH_OF_SIGNAL){
-    n_samp = 0; 
-  }
-
+  // Update index variables
+  index_in_array++;
+  if(index_in_array >= LENGTH_OF_SIGNAL) index_in_array = 0;
+  index_test_signal++;
+  if(index_test_signal >= LENGTH_OF_TEST_SIGNAL) index_test_signal = 0;
 }
 
-//--------------------------------------------------------------
-void timer_setup() { //setup interrupts
+//-----------------------------------------------------------------
+void timer_setup() { //setup interrupt
     timer0.begin(ISR, TIMER_INT_MICROS);  
-} //timer_setup() 
+} 
 
+//-----------------------------------------------------------------
 float gain_magn(float h[], float omega) {
     float cos_term = 0.0;
     float sin_term = 0.0;
@@ -300,8 +299,8 @@ float gain_magn(float h[], float omega) {
 
 void setup() {
   
-  n_samp = 0; 
-  k = 0; 
+  index_in_array = 0; 
+  index_test_signal = 0; 
   // Normalize bandpass filter coefficients
   float gain_mag = gain_magn(bp_filter_coeff, 0.1);
   for (int k=0; k<N_FILTER_LENGTH; k++) {
