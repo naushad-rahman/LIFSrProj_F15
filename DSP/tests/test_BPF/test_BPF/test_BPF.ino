@@ -1,12 +1,13 @@
 
 
-#include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
+//#include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
+#include "/Users/nordin/Documents/Arduino/libraries/ADC-master/ADC.h"
 
 #define BAUD_RATE 115200
 #define TIMER_INT_MICROS 200
 #define LENGTH_OF_DAC 10
 #define LENGTH_OF_SIGNAL 37
-#define LENGTH_OF_TEST_SIGNAL 1001
+#define LENGTH_OF_TEST_SIGNAL 1000
 
 #define N_FILTER_LENGTH 37
 
@@ -220,12 +221,8 @@ float test_signal[LENGTH_OF_TEST_SIGNAL] = {
         1.        ,  0.80901699,  0.30901699, -0.30901699, -0.80901699,
        -1.        , -0.80901699, -0.30901699,  0.30901699,  0.80901699,
         1.        ,  0.80901699,  0.30901699, -0.30901699, -0.80901699,
-       -1.        , -0.80901699, -0.30901699,  0.30901699,  0.80901699,  1.    
+       -1.        , -0.80901699, -0.30901699,  0.30901699,  0.80901699 };
 
-
-
-
-};
 float in_array[LENGTH_OF_SIGNAL]; 
 float volatile after_BPF[LENGTH_OF_SIGNAL];
 
@@ -259,10 +256,6 @@ void execute_BPF() {
   //Serial.print("\n\r n_samp: ");
   //Serial.print(n_samp);
   //delay(1000);
-  Serial.print("\n\rafter_BPF: ");
-  Serial.println(after_BPF[n_samp], 5);
- 
-  
 }
 //-----------------------------------------------------------------
 
@@ -277,8 +270,9 @@ void ISR(){
      in_array[n_samp] = test_signal[k];
   //*****************************************
   execute_BPF();
-   Serial.print("\n\rinput_signal: ");
   Serial.print(in_array[n_samp]);
+  Serial.print(",");
+  Serial.println(after_BPF[n_samp], 5);
 
   n_samp++;
   k ++;
