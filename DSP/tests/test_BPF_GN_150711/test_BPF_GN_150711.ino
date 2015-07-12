@@ -15,7 +15,9 @@
 //#include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
 #include "/Users/nordin/Documents/Arduino/libraries/ADC-master/ADC.h"
 
-#define SIMULATED_SIGNAL_SELECTION 1  // 1=cosine (calculated), 2=impulse
+// 1=cosine (calculated), 2=impulse, 3=cosine from lut, 4=rectangular pulse, 
+// 5=rectangular modulation of raised cosine, 6=Gaussian modulation of raised cosine
+#define SIMULATED_SIGNAL_SELECTION 6 
 
 #define BAUD_RATE 115200
 #define TIMER_INT_MICROS 200
@@ -52,9 +54,9 @@ int n_mid_coef = (N_FILTER_LENGTH-1)/2;
 //int n_mid_coef = 2; //should be (N_FILTER_LENGTH-1)/2, but this works. Needs figured out why
 
 //-----------------------------------------------------------------
-void LUT(){
+void cosine_LUT(){
    for(int i = 0; i < LENGTH_OF_DAC; i++){
-     dac_lut[i] = (int) ((cos(twopi*((float) i)/ LENGTH_OF_DAC) + 1)*2050);   
+     dac_lut[i] = (int) ((cos(twopi*((float) i)/ LENGTH_OF_DAC) + 1)*2047);   
    }
 }
 
@@ -106,22 +108,52 @@ float gain_magn(float h[], float omega) {
     return gain_mag;
 }
 
-void setup() {
-
+//-----------------------------------------------------------------
+void setup_test_signal() {
+  int mid, width;
   switch (SIMULATED_SIGNAL_SELECTION) {
-    case 1:
-      for(int ii = 0; ii < LENGTH_OF_TEST_SIGNAL; ii++){
+    case 1: // raised cosine as float in range [0,2]
+      for (int ii = 0; ii < LENGTH_OF_TEST_SIGNAL; ii++) {
         test_signal[ii] = 1.0 + cos(twopi*((float) ii)/ LENGTH_OF_DAC);
       }
       break;
-    case 2:
+    case 2: // impulse with range [0,1]
       for (int ii=0; ii<LENGTH_OF_TEST_SIGNAL; ii++) test_signal[ii] = 0.0;
       test_signal[LENGTH_OF_TEST_SIGNAL/2] = 1.0;
       break;
+    case 3: // raised cosine using look up table, range is [0,4094]
+      for (int ii=0; ii<LENGTH_OF_TEST_SIGNAL; ii++) {
+        test_signal[ii] = dac_lut[ii % LENGTH_OF_DAC];
+      }
+      break;
+    case 4: // rectangular pulse with range [0,1]
+      mid = LENGTH_OF_TEST_SIGNAL/2; width = LENGTH_OF_TEST_SIGNAL/4;
+      for (int ii=0; ii<LENGTH_OF_TEST_SIGNAL; ii++) test_signal[ii] = 0.0;
+      for (int ii=mid-width/2; ii<mid+width/2; ii++) test_signal[ii] = 1.0;
+      break;
+    case 5: // rectangular modulation of raised cosine, range [0,2]
+      mid = LENGTH_OF_TEST_SIGNAL/2; width = LENGTH_OF_TEST_SIGNAL/4;
+      for (int ii=0; ii<LENGTH_OF_TEST_SIGNAL; ii++) test_signal[ii] = 0.0;
+      for (int ii=mid-width/2; ii<mid+width/2; ii++) test_signal[ii] = 1.0;
+      for (int ii = 0; ii < LENGTH_OF_TEST_SIGNAL; ii++) {
+        test_signal[ii] *= 1.0 + cos(twopi*((float) ii)/ LENGTH_OF_DAC);
+      }
+      break;
+    case 6: // Gaussian modulation of raised cosine, range [0,2]
+      mid = LENGTH_OF_TEST_SIGNAL/2; width = LENGTH_OF_TEST_SIGNAL/8;
+      for (int ii = 0; ii < LENGTH_OF_TEST_SIGNAL; ii++) {
+        test_signal[ii] = exp( -pow((ii-mid),2.0)/(2.0*pow(width,2.0)) );
+        test_signal[ii] *= (1.0 + cos(twopi*((float) ii)/ LENGTH_OF_DAC));
+      }
+      break;
     default: 
       break;
-   }
-  
+   }  
+}
+
+void setup() {
+  cosine_LUT();
+  setup_test_signal();
   index_in_array = 0; 
   index_test_signal = 0; 
   counter = 0;
