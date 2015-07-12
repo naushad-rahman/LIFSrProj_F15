@@ -25,7 +25,7 @@
 #define LENGTH_OF_SIGNAL 37
 #define N_FILTER_LENGTH 37
 #define LENGTH_OF_TEST_SIGNAL 1000
-#define OUTPUT_SAMPLE_INTERVAL 50
+#define OUTPUT_SAMPLE_INTERVAL 1
 
 float test_signal[LENGTH_OF_TEST_SIGNAL];
 
@@ -49,6 +49,7 @@ int volatile index_test_signal;
 int volatile index_in_array;
 int volatile zero_phase_index;
 int volatile counter;
+boolean volatile data_ready_flag;
 
 int n_mid_coef = (N_FILTER_LENGTH-1)/2;
 //int n_mid_coef = 2; //should be (N_FILTER_LENGTH-1)/2, but this works. Needs figured out why
@@ -74,21 +75,22 @@ void execute_BPF() {
 
 //-----------------------------------------------------------------
 void ISR(){
-  in_array[index_in_array] = test_signal[index_test_signal]; // Test with a simulated PMT Signal
-  execute_BPF();
-  // Calculate index into in_array that corresponds to a zero-phase filter
-  zero_phase_index = index_in_array - n_mid_coef;
-  if (zero_phase_index < 0) zero_phase_index += N_FILTER_LENGTH;
-  // Write to serial comma separated simulated value and zero-phase bandpass filtered value
-  Serial.print(in_array[zero_phase_index]); Serial.print(",");
-  Serial.println(after_BPF[index_in_array], 5);
-  //Serial.println(after_BPF[index_in_array], 5);
   // Update index variables
   index_in_array++;
   if(index_in_array >= LENGTH_OF_SIGNAL) index_in_array = 0;
   index_test_signal++;
   if(index_test_signal >= LENGTH_OF_TEST_SIGNAL) index_test_signal = 0;
   counter++;
+  // Use simulated PMT signal & apply bandpass filter
+  in_array[index_in_array] = test_signal[index_test_signal]; 
+  execute_BPF();
+  // Calculate index into in_array that corresponds to a zero-phase filter
+  zero_phase_index = index_in_array - n_mid_coef;
+  if (zero_phase_index < 0) zero_phase_index += N_FILTER_LENGTH;
+  data_ready_flag = true;
+  // Write to serial comma separated simulated value and zero-phase bandpass filtered value
+  //Serial.print(in_array[zero_phase_index]); Serial.print(",");
+  //Serial.println(after_BPF[index_in_array], 5);
 }
 
 //-----------------------------------------------------------------
@@ -152,11 +154,14 @@ void setup_test_signal() {
 }
 
 void setup() {
+  // Set up test signal
   cosine_LUT();
   setup_test_signal();
+  // Initialize counters
   index_in_array = 0; 
   index_test_signal = 0; 
   counter = 0;
+  data_ready_flag = false;
   // Normalize bandpass filter coefficients
   float gain_mag = gain_magn(bp_filter_coeff, 0.1);
   for (int k=0; k<N_FILTER_LENGTH; k++) {
@@ -169,7 +174,9 @@ void setup() {
 }
 
 void loop() {
-  if ((counter % OUTPUT_SAMPLE_INTERVAL) == 0) {
-
+  if ( data_ready_flag && ((counter % OUTPUT_SAMPLE_INTERVAL) == 0) ) {
+    Serial.print(in_array[zero_phase_index]); Serial.print(",");
+    Serial.println(after_BPF[index_in_array], 5);
+    data_ready_flag = false;
   }
 }
