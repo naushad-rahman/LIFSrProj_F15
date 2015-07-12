@@ -15,7 +15,7 @@
 #include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
 //#include "/Users/nordin/Documents/Arduino/libraries/ADC-master/ADC.h"
 
-#define SIMULATED_SIGNAL_SELECTION 2  // 1=cosine, 2=impulse
+#define SIMULATED_SIGNAL_SELECTION 1  // 1=cosine, 2=impulse
 
 #define BAUD_RATE 115200
 #define TIMER_INT_MICROS 200
