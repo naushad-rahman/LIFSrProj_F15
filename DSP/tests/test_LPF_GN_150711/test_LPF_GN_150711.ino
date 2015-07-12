@@ -146,8 +146,8 @@ float gain_magn(float h[], float omega) {
     float cos_term = 0.0;
     float sin_term = 0.0;
     for (int k=0; k<N_FILTER_LENGTH; k++) {
-        cos_term += bp_filter_coeff[k] * cos(twopi*omega*k);
-        sin_term += bp_filter_coeff[k] * sin(twopi*omega*k);
+        cos_term += h[k] * cos(twopi*omega*k);
+        sin_term += h[k] * sin(twopi*omega*k);
     }
     float gain_mag = sqrt(cos_term*cos_term + sin_term*sin_term);
     return gain_mag;
@@ -240,9 +240,13 @@ void loop() {
       after_cosmult[bp_index] = after_BPF[bp_index] * cosine_lut[lut_index];
     }
     execute_LPF2();
+    float gain_mag_hp = gain_magn(bp_filter_coeff, 0.1);
+    float gain_mag_lp = gain_magn(lp_filter_coeff, 0.0);
     Serial.print(in_array[zero_phase_index]); Serial.print(",");
     Serial.print(after_BPF[index_in_array], 5); Serial.print(",");
     Serial.print(after_cosmult[index_in_array], 5); Serial.print(",");
+    //Serial.print(gain_mag_hp); Serial.print(",");
+    //Serial.println(gain_mag_lp);
     Serial.println(after_LPF[index_in_array], 5);
     data_ready_flag = false;
   }

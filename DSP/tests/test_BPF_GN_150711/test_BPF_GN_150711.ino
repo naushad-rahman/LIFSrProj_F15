@@ -134,8 +134,8 @@ float gain_magn(float h[], float omega) {
     float cos_term = 0.0;
     float sin_term = 0.0;
     for (int k=0; k<N_FILTER_LENGTH; k++) {
-        cos_term += bp_filter_coeff[k] * cos(twopi*omega*k);
-        sin_term += bp_filter_coeff[k] * sin(twopi*omega*k);
+        cos_term += h[k] * cos(twopi*omega*k);
+        sin_term += h[k] * sin(twopi*omega*k);
     }
     float gain_mag = sqrt(cos_term*cos_term + sin_term*sin_term);
     return gain_mag;
