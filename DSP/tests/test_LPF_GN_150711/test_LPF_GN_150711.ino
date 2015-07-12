@@ -17,7 +17,7 @@
 
 // 1=raised cosine (calculated), 2=impulse, 3=raised cosine from lut, 4=rectangular pulse, 
 // 5=rectangular modulation of raised cosine, 6=Gaussian modulation of raised cosine
-#define SIMULATED_SIGNAL_SELECTION 1
+#define SIMULATED_SIGNAL_SELECTION 4
 
 #define BAUD_RATE 115200
 #define TIMER_INT_MICROS 800
@@ -89,6 +89,18 @@ void execute_LPF() {
       fir_delayline_index += N_FILTER_LENGTH;
     }
     after_LPF[index_in_array] += after_cosmult[fir_delayline_index] * lp_filter_coeff[fir_coef_index];
+  }  
+}
+
+//-----------------------------------------------------------------
+void execute_LPF2() {
+  after_LPF[index_in_array] = in_array[index_in_array] * lp_filter_coeff[0];
+  for (int fir_coef_index = 1; fir_coef_index < N_FILTER_LENGTH; fir_coef_index++) {
+    int fir_delayline_index = index_in_array - fir_coef_index;
+    if (fir_delayline_index < 0) {
+      fir_delayline_index += N_FILTER_LENGTH;
+    }
+    after_LPF[index_in_array] += in_array[fir_delayline_index] * lp_filter_coeff[fir_coef_index];
   }  
 }
 
@@ -227,7 +239,7 @@ void loop() {
       if (lut_index >= LENGTH_OF_DAC) lut_index -= LENGTH_OF_DAC;
       after_cosmult[bp_index] = after_BPF[bp_index] * cosine_lut[lut_index];
     }
-    execute_LPF();
+    execute_LPF2();
     Serial.print(in_array[zero_phase_index]); Serial.print(",");
     Serial.print(after_BPF[index_in_array], 5); Serial.print(",");
     Serial.print(after_cosmult[index_in_array], 5); Serial.print(",");
