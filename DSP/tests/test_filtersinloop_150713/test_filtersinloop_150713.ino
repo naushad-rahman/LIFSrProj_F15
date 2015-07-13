@@ -17,11 +17,7 @@
 
 // 1=raised cosine (calculated), 2=impulse, 3=raised cosine from lut, 4=rectangular pulse, 
 // 5=rectangular modulation of raised cosine, 6=Gaussian modulation of raised cosine
-<<<<<<< HEAD
-#define SIMULATED_SIGNAL_SELECTION 1
-=======
 #define SIMULATED_SIGNAL_SELECTION 5
->>>>>>> 0754cf322f0b1896a4d37e6c489c649556126041
 
 #define BAUD_RATE 115200
 #define TIMER_INT_MICROS 800
@@ -51,8 +47,8 @@ float lp_filter_coeff[N_FILTER_LENGTH] = {
            0.012958, 0.011275, 0.009591, 0.007961, 0.006430, 
            0.005036, 0.003806, 0.002756, 0.001891, 0.001207, 0.000692, 0.000326};
 
-float volatile in_array[LENGTH_OF_SIGNAL]; 
-float volatile after_BPF[LENGTH_OF_SIGNAL];
+float in_array[LENGTH_OF_SIGNAL]; 
+float after_BPF[LENGTH_OF_SIGNAL];
 float after_cosmult[LENGTH_OF_SIGNAL];
 float after_LPF[LENGTH_OF_SIGNAL];
 
@@ -61,6 +57,7 @@ float cosine_lut[LENGTH_OF_DAC];
 int dac_lut[LENGTH_OF_DAC]; 
 float twopi = 3.14159265359 * 2;
 
+float volatile current_value;
 int volatile index_test_signal;
 int volatile index_in_array;
 int volatile zero_phase_index;
@@ -74,7 +71,6 @@ int n_mid_coef = (N_FILTER_LENGTH-1)/2;
 void cosine_LUT() {
    for(int i = 0; i < LENGTH_OF_DAC; i++) {
      cosine_lut[i] = cos(twopi*((float) i)/ LENGTH_OF_DAC);   
-<<<<<<< HEAD
    }
 }
 
@@ -82,22 +78,10 @@ void cosine_LUT() {
 void dac_LUT() {
    for(int i = 0; i < LENGTH_OF_DAC; i++) {
      dac_lut[i] = int ((1 + cosine_lut[i])*2047);   
-=======
->>>>>>> 0754cf322f0b1896a4d37e6c489c649556126041
    }
 }
 
 //-----------------------------------------------------------------
-<<<<<<< HEAD
-=======
-void dac_LUT() {
-   for(int i = 0; i < LENGTH_OF_DAC; i++) {
-     dac_lut[i] = int ((1 + cosine_lut[i])*2047);   
-   }
-}
-
-//-----------------------------------------------------------------
->>>>>>> 0754cf322f0b1896a4d37e6c489c649556126041
 void execute_LPF() {
   after_LPF[index_in_array] = after_cosmult[index_in_array] * lp_filter_coeff[0];
   for (int fir_coef_index = 1; fir_coef_index < N_FILTER_LENGTH; fir_coef_index++) {
@@ -122,8 +106,6 @@ void execute_BPF() {
 }
 
 //-----------------------------------------------------------------
-<<<<<<< HEAD
-=======
 void execute_FIR(float in[], float out[], float h[]) {
   out[index_in_array] = in[index_in_array] * h[0];
   for (int fir_coef_index = 1; fir_coef_index < N_FILTER_LENGTH; fir_coef_index++) {
@@ -136,7 +118,6 @@ void execute_FIR(float in[], float out[], float h[]) {
 }
 
 //-----------------------------------------------------------------
->>>>>>> 0754cf322f0b1896a4d37e6c489c649556126041
 void ISR() {
   // Update index variables
   index_in_array++;
@@ -145,12 +126,8 @@ void ISR() {
   if(index_test_signal >= LENGTH_OF_TEST_SIGNAL) index_test_signal = 0;
   counter++;
   // Use simulated PMT signal & apply bandpass filter
-  in_array[index_in_array] = test_signal[index_test_signal]; 
-  execute_BPF();
-<<<<<<< HEAD
-=======
+  current_value = test_signal[index_test_signal]; 
   //execute_FIR(in_array, after_BPF, bp_filter_coeff);
->>>>>>> 0754cf322f0b1896a4d37e6c489c649556126041
   // Calculate index into in_array that corresponds to a zero-phase filter
   zero_phase_index = index_in_array - n_mid_coef;
   if (zero_phase_index < 0) zero_phase_index += N_FILTER_LENGTH;
@@ -250,6 +227,10 @@ void setup() {
 void loop() {
   int jj;
   if ( data_ready_flag && ((counter % OUTPUT_SAMPLE_INTERVAL) == 0) ) {
+
+    in_array[index_in_array] = current_value;
+    execute_BPF();
+    
     /* // Write test signal & bandpass filtered values to serial port
     Serial.print(in_array[zero_phase_index]); Serial.print(",");
     Serial.println(after_BPF[index_in_array], 5); */
