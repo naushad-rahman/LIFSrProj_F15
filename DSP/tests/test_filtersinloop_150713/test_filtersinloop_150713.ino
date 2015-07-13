@@ -47,8 +47,8 @@ float lp_filter_coeff[N_FILTER_LENGTH] = {
            0.012958, 0.011275, 0.009591, 0.007961, 0.006430, 
            0.005036, 0.003806, 0.002756, 0.001891, 0.001207, 0.000692, 0.000326};
 
-float volatile in_array[LENGTH_OF_SIGNAL]; 
-float volatile after_BPF[LENGTH_OF_SIGNAL];
+float in_array[LENGTH_OF_SIGNAL]; 
+float after_BPF[LENGTH_OF_SIGNAL];
 float after_cosmult[LENGTH_OF_SIGNAL];
 float after_LPF[LENGTH_OF_SIGNAL];
 
@@ -57,6 +57,7 @@ float cosine_lut[LENGTH_OF_DAC];
 int dac_lut[LENGTH_OF_DAC]; 
 float twopi = 3.14159265359 * 2;
 
+float volatile current_value;
 int volatile index_test_signal;
 int volatile index_in_array;
 int volatile zero_phase_index;
@@ -125,8 +126,7 @@ void ISR() {
   if(index_test_signal >= LENGTH_OF_TEST_SIGNAL) index_test_signal = 0;
   counter++;
   // Use simulated PMT signal & apply bandpass filter
-  in_array[index_in_array] = test_signal[index_test_signal]; 
-  execute_BPF();
+  current_value = test_signal[index_test_signal]; 
   //execute_FIR(in_array, after_BPF, bp_filter_coeff);
   // Calculate index into in_array that corresponds to a zero-phase filter
   zero_phase_index = index_in_array - n_mid_coef;
@@ -227,6 +227,10 @@ void setup() {
 void loop() {
   int jj;
   if ( data_ready_flag && ((counter % OUTPUT_SAMPLE_INTERVAL) == 0) ) {
+
+    in_array[index_in_array] = current_value;
+    execute_BPF();
+    
     /* // Write test signal & bandpass filtered values to serial port
     Serial.print(in_array[zero_phase_index]); Serial.print(",");
     Serial.println(after_BPF[index_in_array], 5); */

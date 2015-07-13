@@ -239,14 +239,12 @@ void loop() {
       if (lut_index >= LENGTH_OF_DAC) lut_index -= LENGTH_OF_DAC;
       after_cosmult[bp_index] = after_BPF[bp_index] * cosine_lut[lut_index];
     }
-    execute_LPF2();
+    execute_LPF();
     float gain_mag_hp = gain_magn(bp_filter_coeff, 0.1);
     float gain_mag_lp = gain_magn(lp_filter_coeff, 0.0);
     Serial.print(in_array[zero_phase_index]); Serial.print(",");
     Serial.print(after_BPF[index_in_array], 5); Serial.print(",");
     Serial.print(after_cosmult[index_in_array], 5); Serial.print(",");
-    //Serial.print(gain_mag_hp); Serial.print(",");
-    //Serial.println(gain_mag_lp);
     Serial.println(after_LPF[index_in_array], 5);
     data_ready_flag = false;
   }
