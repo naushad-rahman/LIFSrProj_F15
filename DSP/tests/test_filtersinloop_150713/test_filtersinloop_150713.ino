@@ -3,13 +3,16 @@
  * 
  * Key variables:
  * 
- *   test_signal - array with simulated data that is calculated in setup()
- *   in_array - buffer containing 37 samples consisting of the current and previous 36 samples
+ *   test_signal - array with simulated data. It is calculated in setup()
+ *   in_array - buffer containing 37 samples consisting of the current and previous 36 raw samples
  *   after_bp - array containing the current and previous 36 samples passed through the bandpass filter
+ *   counter - all other indices into arrays are calculated from this counter using the modulo (%) operation
  *   index_test_signal - index of current value from test_signal
  *   index_in_array - index of current value of in_array and after_bp
- * 
- * 
+ *   zero_phase_index - index into in_array to get value corresponding to applying zero-phase filters
+ *   current_value - value set in interrupt for the most recent raw sample
+ *   data_ready_flag - true: a new value has been set in the interrupt
+ *   
  */
 
 //#include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
@@ -19,13 +22,13 @@
 // 5=rectangular modulation of raised cosine, 6=Gaussian modulation of raised cosine
 #define SIMULATED_SIGNAL_SELECTION 5
 
-#define BAUD_RATE 115200
+#define OUTPUT_SAMPLE_INTERVAL 1
 #define TIMER_INT_MICROS 800
 #define LENGTH_OF_DAC 10
 #define LENGTH_OF_SIGNAL 37
 #define N_FILTER_LENGTH 37
 #define LENGTH_OF_TEST_SIGNAL 1000
-#define OUTPUT_SAMPLE_INTERVAL 1
+#define BAUD_RATE 115200
 
 float test_signal[LENGTH_OF_TEST_SIGNAL];
 
@@ -59,13 +62,13 @@ float twopi = 3.14159265359 * 2;
 
 float volatile current_value;
 int volatile index_test_signal;
-int volatile index_in_array;
-int volatile zero_phase_index;
-int volatile counter;
 boolean volatile data_ready_flag;
 
+int index_in_array;
+int zero_phase_index;
+int counter;
+
 int n_mid_coef = (N_FILTER_LENGTH-1)/2;
-//int n_mid_coef = 2; //should be (N_FILTER_LENGTH-1)/2, but this works. Needs figured out why
 
 //-----------------------------------------------------------------
 void cosine_LUT() {
@@ -119,22 +122,9 @@ void execute_FIR(float in[], float out[], float h[]) {
 
 //-----------------------------------------------------------------
 void ISR() {
-  // Update index variables
-  index_in_array++;
-  if(index_in_array >= LENGTH_OF_SIGNAL) index_in_array = 0;
-  index_test_signal++;
-  if(index_test_signal >= LENGTH_OF_TEST_SIGNAL) index_test_signal = 0;
-  counter++;
   // Use simulated PMT signal & apply bandpass filter
   current_value = test_signal[index_test_signal]; 
-  //execute_FIR(in_array, after_BPF, bp_filter_coeff);
-  // Calculate index into in_array that corresponds to a zero-phase filter
-  zero_phase_index = index_in_array - n_mid_coef;
-  if (zero_phase_index < 0) zero_phase_index += N_FILTER_LENGTH;
   data_ready_flag = true;
-  // Write to serial comma separated simulated value and zero-phase bandpass filtered value
-  //Serial.print(in_array[zero_phase_index]); Serial.print(",");
-  //Serial.println(after_BPF[index_in_array], 5);
 }
 
 //-----------------------------------------------------------------
@@ -204,9 +194,9 @@ void setup() {
   // Set up test signal
   setup_test_signal();
   // Initialize counters & flags
-  index_in_array = -1; 
-  index_test_signal = -1; 
-  counter = -1;
+  //index_in_array = -1; 
+  //index_test_signal = -1; 
+  counter = 0;
   data_ready_flag = false;
   // Normalize bandpass filter coefficients
   float gain_mag = gain_magn(bp_filter_coeff, 0.1);
@@ -227,16 +217,19 @@ void setup() {
 void loop() {
   int jj;
   if ( data_ready_flag && ((counter % OUTPUT_SAMPLE_INTERVAL) == 0) ) {
-
+    // Calculate index variables
+    index_in_array = counter % LENGTH_OF_SIGNAL;
+    index_test_signal = counter % LENGTH_OF_TEST_SIGNAL;
+    // Update delay line with latest sample from interrupt
     in_array[index_in_array] = current_value;
-    execute_BPF();
-    
-    /* // Write test signal & bandpass filtered values to serial port
-    Serial.print(in_array[zero_phase_index]); Serial.print(",");
-    Serial.println(after_BPF[index_in_array], 5); */
-    jj = (counter-n_mid_coef) % LENGTH_OF_DAC;
-    /*Serial.print(in_array[zero_phase_index]); Serial.print(",");
-    Serial.println(cosine_lut[jj]*after_BPF[index_in_array], 5);*/
+    // Apply bandpass filter
+    execute_FIR(in_array, after_BPF, bp_filter_coeff);
+    // Calculate index into in_array that corresponds to a zero-phase filter
+    zero_phase_index = (counter-n_mid_coef) % LENGTH_OF_SIGNAL;
+    //zero_phase_index = index_in_array - n_mid_coef;
+    //if (zero_phase_index < 0) zero_phase_index += LENGTH_OF_SIGNAL;
+    // Multiply band pass filtered data by cosine for demultiplexing
+    jj = (counter-n_mid_coef - 1) % LENGTH_OF_DAC;
     for (int ii = 0; ii < N_FILTER_LENGTH; ii++) {
       int bp_index = index_in_array + ii;
       if (bp_index >= N_FILTER_LENGTH) bp_index -= N_FILTER_LENGTH;
@@ -244,11 +237,15 @@ void loop() {
       if (lut_index >= LENGTH_OF_DAC) lut_index -= LENGTH_OF_DAC;
       after_cosmult[bp_index] = after_BPF[bp_index] * cosine_lut[lut_index];
     }
-    execute_LPF();
+    // Apply low pass filter
+    execute_FIR(in_array, after_LPF, lp_filter_coeff);
+    // Print values to serial port
     Serial.print(in_array[zero_phase_index]); Serial.print(",");
     Serial.print(after_BPF[index_in_array], 5); Serial.print(",");
     Serial.print(after_cosmult[index_in_array], 5); Serial.print(",");
+    //Serial.print(cosine_lut[jj], 5); Serial.print(",");
     Serial.println(after_LPF[index_in_array], 5);
     data_ready_flag = false;
+    counter++;
   }
 }
