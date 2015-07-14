@@ -20,10 +20,10 @@
 
 // 1=raised cosine (calculated), 2=impulse, 3=raised cosine from lut, 4=rectangular pulse, 
 // 5=rectangular modulation of raised cosine, 6=Gaussian modulation of raised cosine
-#define SIMULATED_SIGNAL_SELECTION 2
+#define SIMULATED_SIGNAL_SELECTION 4
 
 #define OUTPUT_SAMPLE_INTERVAL 1
-#define TIMER_INT_MICROS 800
+#define TIMER_INT_MICROS 1000
 #define LENGTH_OF_DAC 10
 #define LENGTH_OF_SIGNAL 37
 #define N_FILTER_LENGTH 37
@@ -208,16 +208,16 @@ void loop() {
     //jj = counter % LENGTH_OF_DAC;
     jj = (counter-n_mid_coef) % LENGTH_OF_DAC;
     for (int ii = 0; ii < N_FILTER_LENGTH; ii++) {
-      int bp_index = index_in_array + ii;
-      if (bp_index >= N_FILTER_LENGTH) bp_index -= N_FILTER_LENGTH;
-      int lut_index = jj + ii;
-      if (lut_index >= LENGTH_OF_DAC) lut_index -= LENGTH_OF_DAC;
+      int bp_index = index_in_array - ii;
+      if (bp_index < N_FILTER_LENGTH) bp_index += N_FILTER_LENGTH;
+      int lut_index = jj - ii;
+      if (lut_index < LENGTH_OF_DAC) lut_index += LENGTH_OF_DAC;
       after_cosmult[bp_index] = after_BPF[bp_index] * cosine_lut[lut_index];
     }
     // Apply low pass filter
     execute_FIR(after_cosmult, after_LPF, lp_filter_coeff);
     // Print values to serial port
-    Serial.print(in_array[zero_phase_index]); Serial.print(",");
+    Serial.print(in_array[index_in_array]); Serial.print(",");
     Serial.print(after_BPF[index_in_array], 5); Serial.print(",");
     Serial.print(after_cosmult[index_in_array], 5); Serial.print(",");
     //Serial.print(cosine_lut[jj], 5); Serial.print(",");
