@@ -58,15 +58,24 @@ void zero_array(float in[], int n_size) {
 }
 
 //-----------------------------------------------------------------
-float gain_magn(float h[], float omega) {
+float gain_magn(float h[], float omega, int n_size) {
     float cos_term = 0.0;
     float sin_term = 0.0;
-    for (int k=0; k<N_FILTER_LENGTH; k++) {
+    for (int k=0; k<n_size; k++) {
         cos_term += h[k] * cos(twopi*omega*k);
         sin_term += h[k] * sin(twopi*omega*k);
     }
     float gain_mag = sqrt(cos_term*cos_term + sin_term*sin_term);
     return gain_mag;
+}
+
+//-----------------------------------------------------------------
+void normalize_coefficients(float h[], float omega, int n_size) {
+  float gain_mag = gain_magn(h, 0.0, n_size);
+  for (int k=0; k<n_size; k++) {
+      lp_filter_coeff[k] /= gain_mag;
+  }
+
 }
 
 //-----------------------------------------------------------------
@@ -123,10 +132,7 @@ void setup() {
   zero_array(delay_line, N_FILTER_LENGTH);
   zero_array(after_LPF, N_FILTER_LENGTH);
   // Normalize low pass filter coefficients
-  float gain_mag_lp = gain_magn(lp_filter_coeff, 0.0);
-  for (int k=0; k<N_FILTER_LENGTH; k++) {
-      lp_filter_coeff[k] /= gain_mag_lp;
-  }
+  normalize_coefficients(lp_filter_coeff, 0.0, N_FILTER_LENGTH);
   Serial.begin(BAUD_RATE);
   Serial.flush();
   delay(500);
