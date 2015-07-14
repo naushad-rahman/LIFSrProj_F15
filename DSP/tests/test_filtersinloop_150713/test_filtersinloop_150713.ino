@@ -20,7 +20,7 @@
 
 // 1=raised cosine (calculated), 2=impulse, 3=raised cosine from lut, 4=rectangular pulse, 
 // 5=rectangular modulation of raised cosine, 6=Gaussian modulation of raised cosine
-#define SIMULATED_SIGNAL_SELECTION 5
+#define SIMULATED_SIGNAL_SELECTION 2
 
 #define OUTPUT_SAMPLE_INTERVAL 1
 #define TIMER_INT_MICROS 800
@@ -85,30 +85,6 @@ void dac_LUT() {
 }
 
 //-----------------------------------------------------------------
-void execute_LPF() {
-  after_LPF[index_in_array] = after_cosmult[index_in_array] * lp_filter_coeff[0];
-  for (int fir_coef_index = 1; fir_coef_index < N_FILTER_LENGTH; fir_coef_index++) {
-    int fir_delayline_index = index_in_array - fir_coef_index;
-    if (fir_delayline_index < 0) {
-      fir_delayline_index += N_FILTER_LENGTH;
-    }
-    after_LPF[index_in_array] += after_cosmult[fir_delayline_index] * lp_filter_coeff[fir_coef_index];
-  }  
-}
-
-//-----------------------------------------------------------------
-void execute_BPF() {
-  after_BPF[index_in_array] = in_array[index_in_array] * bp_filter_coeff[0];
-  for (int fir_coef_index = 1; fir_coef_index < N_FILTER_LENGTH; fir_coef_index++) {
-    int fir_delayline_index = index_in_array - fir_coef_index;
-    if (fir_delayline_index < 0) {
-      fir_delayline_index += N_FILTER_LENGTH;
-    }
-    after_BPF[index_in_array] += in_array[fir_delayline_index] * bp_filter_coeff[fir_coef_index];
-  }  
-}
-
-//-----------------------------------------------------------------
 void execute_FIR(float in[], float out[], float h[]) {
   out[index_in_array] = in[index_in_array] * h[0];
   for (int fir_coef_index = 1; fir_coef_index < N_FILTER_LENGTH; fir_coef_index++) {
@@ -123,6 +99,7 @@ void execute_FIR(float in[], float out[], float h[]) {
 //-----------------------------------------------------------------
 void ISR() {
   // Use simulated PMT signal & apply bandpass filter
+  index_test_signal = counter % LENGTH_OF_TEST_SIGNAL;
   current_value = test_signal[index_test_signal]; 
   data_ready_flag = true;
 }
@@ -195,8 +172,8 @@ void setup() {
   setup_test_signal();
   // Initialize counters & flags
   //index_in_array = -1; 
-  //index_test_signal = -1; 
   counter = 0;
+  //index_test_signal = 0; 
   data_ready_flag = false;
   // Normalize bandpass filter coefficients
   float gain_mag = gain_magn(bp_filter_coeff, 0.1);
@@ -217,9 +194,8 @@ void setup() {
 void loop() {
   int jj;
   if ( data_ready_flag && ((counter % OUTPUT_SAMPLE_INTERVAL) == 0) ) {
-    // Calculate index variables
+    // Calculate index variable
     index_in_array = counter % LENGTH_OF_SIGNAL;
-    index_test_signal = counter % LENGTH_OF_TEST_SIGNAL;
     // Update delay line with latest sample from interrupt
     in_array[index_in_array] = current_value;
     // Apply bandpass filter
@@ -229,7 +205,8 @@ void loop() {
     //zero_phase_index = index_in_array - n_mid_coef;
     //if (zero_phase_index < 0) zero_phase_index += LENGTH_OF_SIGNAL;
     // Multiply band pass filtered data by cosine for demultiplexing
-    jj = (counter-n_mid_coef - 1) % LENGTH_OF_DAC;
+    //jj = counter % LENGTH_OF_DAC;
+    jj = (counter-n_mid_coef) % LENGTH_OF_DAC;
     for (int ii = 0; ii < N_FILTER_LENGTH; ii++) {
       int bp_index = index_in_array + ii;
       if (bp_index >= N_FILTER_LENGTH) bp_index -= N_FILTER_LENGTH;
@@ -238,7 +215,7 @@ void loop() {
       after_cosmult[bp_index] = after_BPF[bp_index] * cosine_lut[lut_index];
     }
     // Apply low pass filter
-    execute_FIR(in_array, after_LPF, lp_filter_coeff);
+    execute_FIR(after_cosmult, after_LPF, lp_filter_coeff);
     // Print values to serial port
     Serial.print(in_array[zero_phase_index]); Serial.print(",");
     Serial.print(after_BPF[index_in_array], 5); Serial.print(",");
