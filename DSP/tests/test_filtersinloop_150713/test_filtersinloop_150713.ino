@@ -187,7 +187,7 @@ void setup() {
   }
   Serial.begin(BAUD_RATE);
   Serial.flush();
-  delay(1000); 
+  delay(2000); 
   timer_setup();
 }
 
@@ -218,10 +218,10 @@ void loop() {
     execute_FIR(after_cosmult, after_LPF, lp_filter_coeff);
     // Print values to serial port
     Serial.print(in_array[index_in_array]); Serial.print(",");
-    Serial.print(after_BPF[index_in_array], 5); Serial.print(",");
-    Serial.print(after_cosmult[index_in_array], 5); Serial.print(",");
+    Serial.print(after_BPF[index_in_array]); Serial.print(",");
+    Serial.print(after_cosmult[index_in_array]); Serial.print(",");
     //Serial.print(cosine_lut[jj], 5); Serial.print(",");
-    Serial.println(after_LPF[index_in_array], 5);
+    Serial.println(after_LPF[index_in_array]);
     data_ready_flag = false;
     counter++;
   }
