@@ -1,3 +1,7 @@
+/*
+Low Pass filtering PMT DC signal.
+
+*/
 //Duty cycle for each pin - Change accordingly - Max of 0.5 increments 
 #define D_CYCLE1 100
 #define D_CYCLE2 100
@@ -23,7 +27,7 @@ int incomingByte=0;
 #define LENGTH_OF_SIGNAL 37
 
 float in_array[LENGTH_OF_SIGNAL]; 
-int after_LPF;
+float after_LPF;
 
 int n_samp; 
 int time;
@@ -35,6 +39,58 @@ int dac_lut[LENGTH_OF_DAC];
 float twopi = 3.14159265359 * 2;
 int j;
 
+// 1=raised cosine (calculated), 2=impulse, 3=raised cosine from lut, 4=rectangular pulse, 
+// 5=rectangular modulation of raised cosine, 6=Gaussian modulation of raised cosine
+
+#define SIMULATED_SIGNAL_SELECTION 1
+#define LENGTH_OF_TEST_SIGNAL 1000
+float test_signal[LENGTH_OF_TEST_SIGNAL];
+int volatile index_test_signal;
+
+//-----------------------------------------------------------------
+void setup_test_signal() {
+  int mid, width;
+  switch (SIMULATED_SIGNAL_SELECTION) {
+    case 1: // raised cosine as float in range [0,2]
+      for (int ii = 0; ii < LENGTH_OF_TEST_SIGNAL; ii++) {
+        test_signal[ii] = 1.0 + cos(twopi*((float) ii)/ LENGTH_OF_DAC);
+      }
+      break;
+    case 2: // impulse with range [0,1]
+      for (int ii=0; ii<LENGTH_OF_TEST_SIGNAL; ii++) test_signal[ii] = 0.0;
+      test_signal[LENGTH_OF_TEST_SIGNAL/2] = 1.0;
+      break;
+    case 3: // raised cosine using look up table, range is [0,4094]
+      for (int ii=0; ii<LENGTH_OF_TEST_SIGNAL; ii++) {
+        test_signal[ii] = dac_lut[ii % LENGTH_OF_DAC];
+      }
+      break;
+    case 4: // rectangular pulse with range [0,1]
+      mid = LENGTH_OF_TEST_SIGNAL/2; width = LENGTH_OF_TEST_SIGNAL/4;
+      for (int ii=0; ii<LENGTH_OF_TEST_SIGNAL; ii++) test_signal[ii] = 0.0;
+      for (int ii=mid-width/2; ii<mid+width/2; ii++) test_signal[ii] = 1.0;
+      break;
+    case 5: // rectangular modulation of raised cosine, range [0,2]
+      mid = LENGTH_OF_TEST_SIGNAL/2; width = LENGTH_OF_TEST_SIGNAL/4;
+      for (int ii=0; ii<LENGTH_OF_TEST_SIGNAL; ii++) test_signal[ii] = 0.0;
+      for (int ii=mid-width/2; ii<mid+width/2; ii++) test_signal[ii] = 1.0;
+      for (int ii = 0; ii < LENGTH_OF_TEST_SIGNAL; ii++) {
+        test_signal[ii] *= 1.0 + cos(twopi*((float) ii)/ LENGTH_OF_DAC);
+      }
+      break;
+    case 6: // Gaussian modulation of raised cosine, range [0,2]
+      mid = LENGTH_OF_TEST_SIGNAL/2; width = LENGTH_OF_TEST_SIGNAL/8;
+      for (int ii = 0; ii < LENGTH_OF_TEST_SIGNAL; ii++) {
+        test_signal[ii] = exp( -pow((ii-mid),2.0)/(2.0*pow(width,2.0)) );
+        test_signal[ii] *= (1.0 + cos(twopi*((float) ii)/ LENGTH_OF_DAC));
+      }
+      break;
+    default: 
+      break;
+   }  
+}
+
+//-----------------------------------------------------------------
 
 // Coefficients for FIR low-pass filter
 // Order: 31
@@ -67,15 +123,14 @@ void ISR(){
   //analogWrite(A14, dac_lut[j]); 
   //j++;
   
-  in_array[n_samp] = analogRead(0);
-  
+  in_array[n_samp] = test_signal[index_test_signal];//analogRead(0);
   n_samp++;
-  // Set up ADC and Filter
   if(n_samp >= LENGTH_OF_SIGNAL){
     n_samp = 0; 
     LP_Flag = true; 
   }
-  
+  index_test_signal++;
+  if(index_test_signal >= LENGTH_OF_TEST_SIGNAL) index_test_signal = 0;
 }
 //-------------------------------------------------------
 
@@ -85,9 +140,9 @@ float execute_LPF(){
   float y_LPF = in_array[lp_fifo_num]*lp_filter_coeff[0];
   
   for(int fir_counter = 1; fir_counter < N_FILTER_LENGTH; fir_counter++){
-        int fir_index = lp_fifo_num + fir_counter;
-      if (fir_index >= N_FILTER_LENGTH) {
-        fir_index -= N_FILTER_LENGTH;
+        int fir_index = lp_fifo_num - fir_counter;
+      if (fir_index < 0) {
+        fir_index += N_FILTER_LENGTH;
       }
       y_LPF += in_array[fir_index] * lp_filter_coeff[fir_counter];
   
@@ -130,13 +185,17 @@ void setup()
     correction_factor += lp_filter_coeff[i]; 
   } 
   
+  LUT();
+  index_test_signal = 0;
+  setup_test_signal();
   Serial.begin(BAUD_RATE);
   Serial.flush();
   delay(5000);
-  //LUT();
-  Serial.print("\n\rHello! Right now we are low pass filtering the input of DC PMT signal."); 
-  Serial.print("\n\r Correction factor: ");
-  Serial.print(correction_factor);
+  
+  //Serial.print("\n\rHello! Right now we are low pass filtering the input of DC PMT signal."); 
+  //Serial.print("\n\r Correction factor: ");
+  //Serial.print(correction_factor);
+  //Serial.print("\n\r");
   delay(1000); 
   timer_setup();
 }
@@ -145,23 +204,13 @@ void loop()
 {  
   if(LP_Flag){
       
-      after_LPF = (int) 10*execute_LPF();
-      //Serial.print("\n\r after_LPF: ");
-      //Serial.print(after_LPF);
+    LP_Flag = false;
+    after_LPF = execute_LPF();
       
-      time = micros();
-    
-      unsigned char serialBytes[8]; 
-      serialBytes[0] = (time >> 24) & 0xff;
-      serialBytes[1] = (time >> 16) & 0xff;
-      serialBytes[2] = (time >> 8) & 0xff; 
-      serialBytes[3] = time & 0xff; 
-      serialBytes[4] = (after_LPF >> 24) & 0xff;
-      serialBytes[5] = (after_LPF >> 16) & 0xff;
-      serialBytes[6] = (after_LPF >> 8) & 0xff; 
-      serialBytes[7] = after_LPF & 0xff; 
-      Serial.println(after_LPF);
-      //Serial.write(serialBytes,8);
+    time = micros();
+
+    Serial.print(in_array[n_samp],5); Serial.print(",");
+    Serial.print(after_LPF,5); Serial.print(",\n\r");
  
   }
   
@@ -171,28 +220,28 @@ void loop()
     switch (incomingByte)//Cases are in DEC format 
     {
       case 49://Number 1 in 8-bit decimal
-        // statements
+        // HV on
         analogWrite(pwmPin1, RESOLUTION*D_CYCLE1/100);
         analogWrite(pwmPin2, RESOLUTION*D_CYCLE2/100);
         analogWrite(pwmPin3, RESOLUTION*D_CYCLE3/100);        
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);//HV on
         break;
       case 50://Number 2 in 8-bit decimal
-        // Flowing/Testing
+        // Injection
         analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-83)/100);
         analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-83)/100);
         analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-94)/100);
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);
         break;
       case 51:
-        //Loading
+        // Separation
         analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-100)/100);
         analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-78)/100);
         analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-78)/100);
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);
         break;
       default: 
-        // statements
+        // HV off
         analogWrite(pwmPin1, RESOLUTION*D_CYCLE1/100);
         analogWrite(pwmPin2, RESOLUTION*D_CYCLE2/100);
         analogWrite(pwmPin3, RESOLUTION*D_CYCLE3/100);        
