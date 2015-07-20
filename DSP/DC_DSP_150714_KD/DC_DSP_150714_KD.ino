@@ -26,7 +26,7 @@ int incomingByte=0;
 #define N_FILTER_LENGTH 37
 #define LENGTH_OF_SIGNAL 37
 
-float in_array[LENGTH_OF_SIGNAL]; 
+int in_array[LENGTH_OF_SIGNAL]; 
 float after_LPF;
 
 int n_samp; 
@@ -123,7 +123,7 @@ void ISR(){
   //analogWrite(A14, dac_lut[j]); 
   //j++;
   
-  in_array[n_samp] = test_signal[index_test_signal];//analogRead(0);
+  in_array[n_samp] = analogRead(0);
   n_samp++;
   if(n_samp >= LENGTH_OF_SIGNAL){
     n_samp = 0; 
@@ -203,15 +203,30 @@ void setup()
 void loop()
 {  
   if(LP_Flag){
-      
+
+    int temp;
     LP_Flag = false;
     after_LPF = execute_LPF();
-      
-    time = micros();
 
-    Serial.print(in_array[n_samp],5); Serial.print(",");
-    Serial.print(after_LPF,5); Serial.print(",\n\r");
- 
+      temp = int(after_LPF);
+    //time = micros();
+
+    //Serial.print(time); Serial.print(",");
+    //Serial.print(after_LPF,5); Serial.print(",\n\r");
+
+    time = micros(); //Time in microseconds since start of program
+  //We will write our values as an array of bytes for easy
+  //transmission and retrieval
+  unsigned char serialBytes[8];
+  serialBytes[0] = (time >> 24) & 0xff;
+  serialBytes[1] = (time >> 16) & 0xff;
+  serialBytes[2] = (time >> 8) & 0xff;
+  serialBytes[3] = time & 0xff;
+  serialBytes[4] = (temp >> 24) & 0xff;
+  serialBytes[5] = (temp >> 16) & 0xff;
+  serialBytes[6] = (temp >> 8) & 0xff;
+  serialBytes[7] = temp & 0xff;
+  Serial.write(serialBytes,8);
   }
   
   while(Serial.available())
