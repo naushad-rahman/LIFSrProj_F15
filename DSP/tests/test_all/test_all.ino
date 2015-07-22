@@ -1,10 +1,5 @@
-#include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
+//#include "/home/samuelwg/Arduino/libraries/ADC/ADC-master/ADC.h"
 //#include "/Users/nordin/Documents/Arduino/libraries/ADC-master/ADC.h"
-
-// 1=raised cosine (calculated), 2=impulse, 3=raised cosine from lut, 4=rectangular pulse, 
-// 5=rectangular modulation of raised cosine, 6=Gaussian modulation of raised cosine
-// 7=Gaussian
-#define SIMULATED_SIGNAL_SELECTION 1
 
 #define BAUD_RATE 115200
 #define LENGTH_OF_LUT 10
@@ -13,7 +8,7 @@
 
 // 1=raised cosine (calculated), 2=impulse, 3=raised cosine from lut, 4=rectangular pulse, 
 // 5=rectangular modulation of raised cosine, 6=Gaussian modulation of raised cosine
-#define SIMULATED_SIGNAL_SELECTION 2
+#define SIMULATED_SIGNAL_SELECTION 1
 
 #define OUTPUT_SAMPLE_INTERVAL 1
 #define TIMER_INT_MICROS 1000
