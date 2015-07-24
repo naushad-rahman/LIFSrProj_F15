@@ -1,3 +1,11 @@
+#HV Control &
+#Read and Plot from the PMT
+
+#This code is to record the data that is received into the Teensy's ADC. 
+#Includes the HV control and replotting the results at the end.
+
+#See CSV Dataplot notebook to plot old experiment data.
+
 from pyqtgraph import QtGui, QtCore #Provides usage of PyQt4's libraries which aids in UI design
 import pyqtgraph as pg              #Initiation of plotting code
 import serial                       #Communication with the serial port is done using the pySerial 2.7 package
@@ -14,6 +22,7 @@ w.setWindowTitle('Voltage Plots')
 
 startBtnClicked = False
 quitBtnClicked = False
+
 
 ## This function contains the behavior we want to see when the start button is clicked
 def startButtonClicked():
@@ -32,40 +41,61 @@ def startButtonClicked():
 def quitButtonClicked():
     global quitBtnClicked
     quitBtnClicked = True
-	
-	
-teensySerialData = serial.Serial("COM4", 115200)
-teensySerialData.write("1")
-teensySerialData.write('3')
-teensySerialData.write('2')
-teensySerialData.write('0')
 
+## Buttons to control the High Voltage
+def HVoffButtonClicked():
+    teensySerialData.write('0')
+    print("HV Off")
+
+def HVonButtonClicked():
+    teensySerialData.write('1')	
+    print("HV On")
+
+def insertionButtonClicked():
+    teensySerialData.write('3')
+    print("Insertion")
+
+def separationButtonClicked():
+    teensySerialData.write('2')
+    print("Separation")
+    
+#Start Recording in Widget
 ## Create widgets to be placed inside
+
 startBtn = QtGui.QPushButton('Start')
 startBtn.setToolTip('Click to begin graphing') #This message appears while hovering mouse over button
 
 quitBtn = QtGui.QPushButton('Quit')
 quitBtn.setToolTip('Click to quit program')
 
+HVonBtn = QtGui.QPushButton("HV on")
+HVonBtn.setToolTip('Click to turn the high voltage on')
+
+HVoffBtn = QtGui.QPushButton("HV off")
+HVoffBtn.setToolTip('Click to turn the high voltage off')
+
+insBtn = QtGui.QPushButton("Insertion")
+insBtn.setToolTip('Click to start insertion (#3)')
+
+sepBtn = QtGui.QPushButton("Separation")
+sepBtn.setToolTip('Click to start separation (#2)')
+
 ## Functions in parantheses are to be called when buttons are clicked
 startBtn.clicked.connect(startButtonClicked)
 quitBtn.clicked.connect(quitButtonClicked)
+HVonBtn.clicked.connect(HVonButtonClicked)
+HVoffBtn.clicked.connect(HVoffButtonClicked)
+insBtn.clicked.connect(insertionButtonClicked)
+sepBtn.clicked.connect(separationButtonClicked)
 
 ## xSamples is the maximum amount of samples we want graphed at a time
 xSamples = 30000
 
-## Create plot widget for PMT plot
-## Documentation for PlotWidget can be found on the pyqtgraph website
-#pmtPlotWidget = pg.PlotWidget()
-#pmtPlotWidget.setYRange(0, 3.3)
-#pmtPlotWidget.setXRange(0, xSamples)
-#pmtPlotWidget.setLabel('top', text = "N/A") #Title to appear at top of widget
-
 ## Create plot widget for peak detector plot
-pdPlotWidget = pg.PlotWidget()
-pdPlotWidget.setYRange(0, 3.3)
-pdPlotWidget.setXRange(0, xSamples)
-pdPlotWidget.setLabel('top', text = "PMT") #Title to appear at top of widget
+pmtPlotWidget = pg.PlotWidget()
+pmtPlotWidget.setYRange(0, 4096)
+pmtPlotWidget.setXRange(0, xSamples)
+pmtPlotWidget.setLabel('top', text = "PMT") #Title to appear at top of widget
 
 ## Create a grid layout to manage the widgets size and position
 ## The grid layout allows us to place a widget in a given column and row
@@ -76,8 +106,12 @@ w.setLayout(layout)
 ## The first number in parantheses is the row, the second is the column
 layout.addWidget(quitBtn, 0, 0)
 layout.addWidget(startBtn, 2, 0)
-#layout.addWidget(pmtPlotWidget, 1, 1)
-layout.addWidget(pdPlotWidget, 1, 2)
+layout.addWidget(HVonBtn, 0, 2)
+layout.addWidget(insBtn, 2, 2)
+layout.addWidget(sepBtn, 3, 2)
+layout.addWidget(HVoffBtn, 4, 2)
+
+layout.addWidget(pmtPlotWidget, 1, 1)
 
 ## Display the widget as a new window
 w.show()
@@ -92,8 +126,7 @@ xLeftIndex = 0
 
 ## These arrays will hold the unplotted voltage values from the pmt
 ## and the peak detector until we are able to update the plot
-#pmtData = []
-pdData = []
+pmtData = []
 
 ## Used to determine how often we plot a range of values
 graphCount = 0
@@ -113,21 +146,21 @@ fileName = str(i.year) + str(i.month) + str(i.day) + "_" + str(i.hour) + str(i.m
 ## File is saved to Documents/IPython Notebooks/RecordedData
 f = open('RecordedData\\' + fileName, 'a')
 f.write("#Data from " + str(i.year) + "-" + str(i.month) + "-" + str(i.day) + " at " + str(i.hour) + ":" + str(i.minute) + ":" + str(i.second) + '\n')
-f.write("Timestamp,PMT,PeakDetector\n")
+f.write("Timestamp,PMT\n")
 
 ## Initialize the container for our voltage values read in from the teensy
 ## IMPORTANT NOTE: The com port value needs to be updated if the com value
 ## changes. It's the same number that appears on the bottom right corner of the
 ## window containing the TeensyDataWrite.ino code
-# teensySerialData = serial.Serial("com38", 9600)
+
+teensySerialData = serial.Serial("COM7", 115200)
 
 def update():
     ## Set global precedence to previously defined values
     global xSamples
     global xRightIndex
     global xLeftIndex
-    #global pmtData
-    global pdData
+    global pmtData
     global graphCount
     global timeElapsed
     global timeElapsedPrev
@@ -140,19 +173,15 @@ def update():
     runCount = bufferSize/8 # since we write 8 bytes at a time, we similarly want to read them 8 at a time
     while (runCount > 0):
         if (startBtnClicked == True):
-            #Bytes read in and stored in a char array of size eight
-            inputBytes = teensySerialData.read(size = 8)
-            #The ord function converts a char to its corresponding ASCII integer, which we can then convert to a float
-            timeByte3 = float(ord(inputBytes[0]))
-            timeByte2 = float(ord(inputBytes[1]))
-            timeByte1 = float(ord(inputBytes[2]))
-            timeByte0 = float(ord(inputBytes[3]))
-            pmtByte1 = float(ord(inputBytes[4]))
-            pmtByte0 = float(ord(inputBytes[5]))
-            pdByte1 = float(ord(inputBytes[6]))
-            pdByte0 = float(ord(inputBytes[7]))
+        
+            #Read in time (int) and PMT output (float with up to 5 decimal places)
+            
+            temp = []
+            temp.append(teensySerialData.readline().strip().split(',') )
+            
             timeElapsedPrev = timeElapsed
-            timeElapsed = timeByte3*256*256*256 + timeByte2*256*256 + timeByte1*256 + timeByte0 #There are 8 bits in a byte, 2^8 = 256
+            timeElapsed = int (temp[0][0])
+            
             if (firstRun == True):
                 ## Only run once to ensure buffer is completely flushed
                 firstRun = False
@@ -167,19 +196,13 @@ def update():
             ## values, probably as a result of the buffer filling up and scrapping old values to make room for new values.
             ## The number we print out will be the approximate number of values we failed to read in.
             ## This is useful to determine if your code is running too slow
-            if (timeElapsed - timeElapsedPrev > 150):
-                print(str((timeElapsed-timeElapsedPrev)/100))
+            if (timeElapsed - timeElapsedPrev > 8000):
+                print(str((timeElapsed-timeElapsedPrev)/7400))
                 
-            numData = pmtByte1*256 + pmtByte0
-            #numData = numData*3.3/1024
-            #numDataRounded = numData - numData%.001 #Round voltage value to 3 decimal points
-            #pmtData.append(numDataRounded)
-            stringToWrite = stringToWrite + str(numDataRounded) + ","
-            numData = pdByte1*256 + pdByte0
-            #numData = numData*3.3/1024
-            #numDataRounded = numData - numData%.001
-            pdData.append(numDataRounded)
-            stringToWrite = stringToWrite + str(numDataRounded) + '\n'
+            numData = float (temp[0][1])
+            
+            pmtData.append(numData)
+            stringToWrite = stringToWrite + str(numData) + '\n'
             f.write(stringToWrite)
             graphCount = graphCount + 1
             xRightIndex = xRightIndex + 1
@@ -187,41 +210,39 @@ def update():
         
     ## We will start plotting when the start button is clicked
     if startBtnClicked == True:
-        if (graphCount >= 500): #We will plot new values once we have this many values to plot
+        if (graphCount >= 50): #We will plot new values once we have this many values to plot
             if (xLeftIndex == 0):
                 ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
                 #pmtPlotWidget.clear()
-                pdPlotWidget.clear()
+                pmtPlotWidget.clear()
                 
-            ## pmtCurve and pdCurve are of the PlotDataItem type and are added to the PlotWidget.
+            ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
             ## Documentation for these types can be found on pyqtgraph's website
-            #pmtCurve = pmtPlotWidget.plot()
-            pdCurve = pdPlotWidget.plot()
+
+            pmtCurve = pmtPlotWidget.plot()
             xRange = range(xLeftIndex,xRightIndex)
-            #pmtCurve.setData(xRange, pmtData)
-            pdCurve.setData(xRange, pdData)
+            pmtCurve.setData(xRange, pmtData)
             
             ## Now that we've plotting the values, we no longer need these arrays to store them
-            pdData = []
-            #pmtData = []
+            pmtData = []
             xLeftIndex = xRightIndex
             graphCount = 0
             if(xRightIndex >= xSamples):
                 xRightIndex = 0
                 xLeftIndex = 0
-               # pmtData = []
-                pdData = []
+                pmtData = []
                 
     if(quitBtnClicked == True):
         ## Close the file and close the window. Performing this action here ensures values we want to write to the file won't be cut off
         f.close()
         w.close()
+        #dataprocessing.CSVDataPlot(fileName)
+			
         
 ## Run update function in response to a timer    
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(0)
-
 
 ## Start the Qt event loop
 app.exec_()
