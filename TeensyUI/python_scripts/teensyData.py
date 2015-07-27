@@ -153,7 +153,7 @@ f.write("Timestamp,PMT\n")
 ## changes. It's the same number that appears on the bottom right corner of the
 ## window containing the TeensyDataWrite.ino code
 
-teensySerialData = serial.Serial("COM7", 115200)
+teensySerialData = serial.Serial("COM4", 115200)
 
 def update():
     ## Set global precedence to previously defined values

@@ -123,7 +123,7 @@ void ISR(){
   //analogWrite(A14, dac_lut[j]); 
   //j++;
   
-  in_array[n_samp] = test_signal[index_test_signal];//analogRead(0);
+  in_array[n_samp] = analogRead(0);//test_signal[index_test_signal];
   n_samp++;
   if(n_samp >= LENGTH_OF_SIGNAL){
     n_samp = 0; 
