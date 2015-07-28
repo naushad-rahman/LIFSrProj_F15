@@ -1,0 +1,14 @@
+We are sampling at 1.25 kHz.  We noticed at a 5Khz Sampling rate we could not sample because we need more time for the 
+Serial.print. 
+
+Test 1- Drop of Rhodamine
+	PMT signal was giving us just below the max point of the PMT
+Test 2- Blank Slide 
+	High Intensity
+Test 3- No Slide	
+	High Intensity
+Test 4- Laser off
+	
+Test 5- PMT covered with lights off 
+
+Test 6- PMT covered with lights on
