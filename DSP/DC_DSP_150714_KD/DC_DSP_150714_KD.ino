@@ -176,6 +176,7 @@ void setup()
   pinMode(pwmPin4, OUTPUT);
   
   analogWriteResolution(12); // Set up DAC resolution
+  analogReadResolution(12); // Set up DAC resolution
   analogWrite(A14, RESOLUTION/2); // Will output 1.65 volts on DAC to illuminate
                                   // the laser at the same intensity as modulated laser
   //j = 0;
