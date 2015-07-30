@@ -21,7 +21,7 @@ int RESOLUTION = 4096; //12 bits max resolution (DO NOT CHANGE)
 int incomingByte=0;
 
 #define BAUD_RATE 115200
-#define TIMER_INT_MICROS 50 // Chosen Default: 200, 5kHz sampling frequency
+#define TIMER_INT_MICROS 100 // Chosen Default: 100, 10kHz sampling frequency
 #define LENGTH_OF_DAC 10
 #define N_FILTER_LENGTH 37
 #define LENGTH_OF_SIGNAL 37
@@ -42,7 +42,7 @@ int j;
 
 
 // 1 = given test signal, 2 = raw ADC data at 1/TIMER_INT_MICROS Hertz, 3 = low pass filtered result at 1/TIMER_INT_MICROS Hertz
-#define PROGRAM_SELECTION 2
+#define PROGRAM_SELECTION 3
 
 // 1=raised cosine (calculated), 2=impulse, 3=raised cosine from lut, 4=rectangular pulse, 
 // 5=rectangular modulation of raised cosine, 6=Gaussian modulation of raised cosine
@@ -224,12 +224,8 @@ void setup()
 void loop()
 {  
   if(LP_Flag){
-
-    //int temp;
     LP_Flag = false;
     after_LPF = execute_LPF();
-
-    //temp = int(after_LPF);
     
     time = micros(); // the time in microseconds since the program was started
     
