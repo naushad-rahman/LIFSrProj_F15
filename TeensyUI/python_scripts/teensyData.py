@@ -253,7 +253,7 @@ def update():
         
     ## We will start plotting when the start button is clicked
     if startBtnClicked == True:
-        if (graphCount >= 50): #We will plot new values once we have this many values to plot
+        if (graphCount >= 100): #We will plot new values once we have this many values to plot
             if (xLeftIndex == 0):
                 ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
                 pmtPlotWidget.clear()
