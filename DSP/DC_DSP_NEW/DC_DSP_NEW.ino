@@ -21,7 +21,7 @@ int RESOLUTION = 4096; //12 bits max resolution (DO NOT CHANGE)
 int incomingByte=0;
 
 #define BAUD_RATE 115200
-#define TIMER_INT_MICROS 800 // Usually 200
+#define TIMER_INT_MICROS 50 // Chosen Default: 200, 5kHz sampling frequency
 #define LENGTH_OF_DAC 10
 #define N_FILTER_LENGTH 37
 #define LENGTH_OF_SIGNAL 37
@@ -173,8 +173,6 @@ float execute_LPF(){
       y_LPF += in_array[fir_index] * lp_filter_coeff[fir_counter];
   
     }  
-   //Serial.print("\n\r y_LPF: ");
-   // Serial.print(y_LPF);
     
     return y_LPF/correction_factor; 
 }
@@ -220,12 +218,6 @@ void setup()
   Serial.begin(BAUD_RATE);
   Serial.flush();
   delay(5000);
-  
-  //Serial.print("\n\rHello! Right now we are low pass filtering the input of DC PMT signal."); 
-  //Serial.print("\n\r Correction factor: ");
-  //Serial.print(correction_factor);
-  //Serial.print("\n\r");
-  delay(1000); 
   timer_setup();
 }
 
@@ -258,7 +250,6 @@ void loop()
     Serial.print(in_array[m]); Serial.print(",\n\r");
 
     }
-  
   
   while(Serial.available())
   {    
