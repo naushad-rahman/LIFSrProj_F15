@@ -10,7 +10,7 @@ from pyqtgraph import QtGui, QtCore #Provides usage of PyQt4's libraries which a
 import pyqtgraph as pg              #Initiation of plotting code
 import serial                       #Communication with the serial port is done using the pySerial 2.7 package
 from datetime import datetime       #Allows us to look at current date and time
-import dataprocessing               #code for plotting the data from the CSV
+import numpy as np
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
@@ -22,7 +22,8 @@ w.setWindowTitle('Voltage Plots')
 
 startBtnClicked = False
 quitBtnClicked = False
-
+quitBtnClicked2 = False
+showNow = False
 
 ## This function contains the behavior we want to see when the start button is clicked
 def startButtonClicked():
@@ -40,8 +41,14 @@ def startButtonClicked():
 ## Below at the end of the update function we check the value of quitBtnClicked
 def quitButtonClicked():
     global quitBtnClicked
+    global showNow
     quitBtnClicked = True
+    showNow = True
 
+def quitButtonClicked2():
+    global quitBtnClicked2
+    quitBtnClicked2 = True
+    
 ## Buttons to control the High Voltage
 def HVoffButtonClicked():
     teensySerialData.write('0')
@@ -68,6 +75,9 @@ startBtn.setToolTip('Click to begin graphing') #This message appears while hover
 quitBtn = QtGui.QPushButton('Quit')
 quitBtn.setToolTip('Click to quit program')
 
+quitBtn2 = QtGui.QPushButton('Quit')
+quitBtn2.setToolTip('Click to quit program')
+
 HVonBtn = QtGui.QPushButton("HV on")
 HVonBtn.setToolTip('Click to turn the high voltage on')
 
@@ -83,6 +93,7 @@ sepBtn.setToolTip('Click to start separation (#2)')
 ## Functions in parantheses are to be called when buttons are clicked
 startBtn.clicked.connect(startButtonClicked)
 quitBtn.clicked.connect(quitButtonClicked)
+quitBtn2.clicked.connect(quitButtonClicked2)
 HVonBtn.clicked.connect(HVonButtonClicked)
 HVoffBtn.clicked.connect(HVoffButtonClicked)
 insBtn.clicked.connect(insertionButtonClicked)
@@ -91,7 +102,39 @@ sepBtn.clicked.connect(separationButtonClicked)
 ## xSamples is the maximum amount of samples we want graphed at a time
 xSamples = 30000
 
-## Create plot widget for peak detector plot
+## To plot the entire csv file after the experiment.
+## Plots at the click of the quit button
+
+## Define a top-level widget to hold everything
+w2 = QtGui.QWidget()
+w2.resize(1000,600)
+w2.setWindowTitle('Voltage Plot')
+
+#Create Plot Widgets
+pmtPlotWidget2 = pg.PlotWidget()
+pmtPlotWidget2.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+pmtPlotWidget2.setYRange(0, 4096)
+pmtPlotWidget2.setLabel('top', text = "PMT")
+pmtCurve2 = pmtPlotWidget2.plot()
+
+lowerBoundValue2 = 0
+upperBoundValue2 = xSamples
+pmtPlotWidget2.setXRange(0, upperBoundValue2)
+   
+## Create a grid layout to manage the widgets size and position
+layout2 = QtGui.QGridLayout()
+w2.setLayout(layout2)
+    
+## Add widgets to the layout in their proper positions
+layout2.addWidget(quitBtn2, 0, 0)
+layout2.addWidget(pmtPlotWidget2, 1, 2, 1, 1)  # wGL goes on right side, spanning 3 rows
+     
+## Display the widget as a new window
+w2.show()
+
+
+## Create plot widget for PMT signal input
+## For real time plotting
 pmtPlotWidget = pg.PlotWidget()
 pmtPlotWidget.setYRange(0, 4096)
 pmtPlotWidget.setXRange(0, xSamples)
@@ -153,7 +196,7 @@ f.write("Timestamp,PMT\n")
 ## changes. It's the same number that appears on the bottom right corner of the
 ## window containing the TeensyDataWrite.ino code
 
-teensySerialData = serial.Serial("COM4", 115200)
+teensySerialData = serial.Serial("COM7", 115200)
 
 def update():
     ## Set global precedence to previously defined values
@@ -213,7 +256,6 @@ def update():
         if (graphCount >= 50): #We will plot new values once we have this many values to plot
             if (xLeftIndex == 0):
                 ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
-                #pmtPlotWidget.clear()
                 pmtPlotWidget.clear()
                 
             ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
@@ -236,7 +278,12 @@ def update():
         ## Close the file and close the window. Performing this action here ensures values we want to write to the file won't be cut off
         f.close()
         w.close()
-        #dataprocessing.CSVDataPlot(fileName)
+    if(quitBtnClicked2 == True):   
+        w2.close()
+    if(showNow == True):
+        data = np.loadtxt(open('RecordedData\\' + fileName,"rb"),delimiter=",",skiprows=2)
+        numSamples2 = data.shape[0]
+        pmtCurve2.setData(data[:,1])
 			
         
 ## Run update function in response to a timer    
