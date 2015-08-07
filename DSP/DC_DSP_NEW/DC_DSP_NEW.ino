@@ -119,6 +119,7 @@ void LUT(){
    }
 }
 //------------------------------------------------------------
+
 void ISR(){
   // Set up the DAC
   //if(j >= LENGTH_OF_DAC){
@@ -201,8 +202,8 @@ void setup()
   
   analogWriteResolution(12); // Set up DAC resolution
   analogReadResolution(12);
-  analogWrite(A14, RESOLUTION/2); // Will output 1.65 volts on DAC to illuminate
-                                  // the laser at the same intensity as modulated laser
+  analogWrite(A14, RESOLUTION*1/3);
+  
   //j = 0;
   correction_factor = 0; 
  LP_Flag = false;
@@ -260,15 +261,15 @@ void loop()
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);//HV on
         break;
       case 50://Number 2 in 8-bit decimal
-        // Injection
-        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-83)/100);
-        analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-83)/100);
-        analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-94)/100);
+         // Separation
+        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-80)/100);
+        analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-80)/100);
+        analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-90)/100);
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);
         break;
       case 51:
-        // Separation
-        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-100)/100);
+      // Injection
+        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-86)/100);
         analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-78)/100);
         analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-78)/100);
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);
