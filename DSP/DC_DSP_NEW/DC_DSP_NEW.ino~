@@ -223,9 +223,6 @@ void setup()
 
 void loop()
 {  
-//----------------------------------------------------------------------------------------
-// ---------------------------------FOR DSP-----------------------------------------------
-//-----------------------------------------------------------------------------------------
   if(LP_Flag){
     LP_Flag = false;
     after_LPF = execute_LPF();
@@ -245,8 +242,8 @@ void loop()
     if(m < 0){
       m = LENGTH_OF_SIGNAL - 1;
       }
-    Serial.print(time); Serial.print(",");  // Print the time to the serial port for python code to read
-    Serial.print(in_array[m]); Serial.print(",\n\r");// print value of LPF to serial port for python code to read. 
+    Serial.print(time); Serial.print(",");
+    Serial.print(in_array[m]); Serial.print(",\n\r");
 
     }
   
