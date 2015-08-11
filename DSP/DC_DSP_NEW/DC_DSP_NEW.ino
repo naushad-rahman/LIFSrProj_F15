@@ -9,9 +9,9 @@ Low Pass filtering PMT DC signal.
 #define D_CYCLE4 100
 
 //new board
-int pwmPin1 = 5;
-int pwmPin2 = 6;
-int pwmPin3 = 4;
+int pwmPin1 = 5;//Waste Well
+int pwmPin2 = 6;//Source Well
+int pwmPin3 = 4;//Separation Well
 int pwmPin4 = 3;//HVcontrol
 
 
@@ -119,7 +119,6 @@ void LUT(){
    }
 }
 //------------------------------------------------------------
-
 void ISR(){
   // Set up the DAC
   //if(j >= LENGTH_OF_DAC){
@@ -202,8 +201,8 @@ void setup()
   
   analogWriteResolution(12); // Set up DAC resolution
   analogReadResolution(12);
-  analogWrite(A14, RESOLUTION*1/3);
-  
+  analogWrite(A14, RESOLUTION/2); // Will output 1.65 volts on DAC to illuminate
+                                  // the laser at the same intensity as modulated laser
   //j = 0;
   correction_factor = 0; 
  LP_Flag = false;
@@ -251,6 +250,8 @@ void loop()
   while(Serial.available())
   {    
     incomingByte = Serial.read();
+    
+    // Change values below to modify the voltage at each of the pins)
     switch (incomingByte)//Cases are in DEC format 
     {
       case 49://Number 1 in 8-bit decimal
@@ -261,15 +262,15 @@ void loop()
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);//HV on
         break;
       case 50://Number 2 in 8-bit decimal
-         // Separation
-        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-80)/100);
-        analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-80)/100);
-        analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-90)/100);
+        // Separation
+        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-83)/100);
+        analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-83)/100);
+        analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-94)/100);
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);
         break;
       case 51:
-      // Injection
-        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-86)/100);
+        // Injection
+        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-100)/100);
         analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-78)/100);
         analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-78)/100);
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);
