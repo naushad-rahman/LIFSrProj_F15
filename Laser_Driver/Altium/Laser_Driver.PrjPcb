@@ -36,22 +36,6 @@ PrefsVaultGUID=
 PrefsRevisionGUID=
 
 [Document1]
-DocumentPath=..\..\..\Desktop\driver.SchDoc
-AnnotationEnabled=1
-AnnotateStartValue=1
-AnnotationIndexControlEnabled=0
-AnnotateSuffix=
-AnnotateScope=All
-AnnotateOrder=0
-DoLibraryUpdate=1
-DoDatabaseUpdate=1
-ClassGenCCAutoEnabled=1
-ClassGenCCAutoRoomEnabled=1
-ClassGenNCAutoScope=None
-DItemRevisionGUID=
-GenerateClassCluster=0
-
-[Document2]
 DocumentPath=Library\Capacitor.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -67,7 +51,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document3]
+[Document2]
 DocumentPath=Library\Connectors.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -83,7 +67,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document4]
+[Document3]
 DocumentPath=Library\Connectors.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -99,7 +83,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document5]
+[Document4]
 DocumentPath=Library\CORBI_R0.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -115,7 +99,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document6]
+[Document5]
 DocumentPath=Library\CORBI_R0.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -131,7 +115,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document7]
+[Document6]
 DocumentPath=Library\Diode.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -147,7 +131,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document8]
+[Document7]
 DocumentPath=Library\Driver_Receiver.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -163,7 +147,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document9]
+[Document8]
 DocumentPath=Library\header.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -179,7 +163,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document10]
+[Document9]
 DocumentPath=Library\header.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -195,7 +179,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document11]
+[Document10]
 DocumentPath=Library\Inductor.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -211,7 +195,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document12]
+[Document11]
 DocumentPath=Library\Inductor.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -227,7 +211,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document13]
+[Document12]
 DocumentPath=Library\LED.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -243,7 +227,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document14]
+[Document13]
 DocumentPath=Library\LED.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -259,7 +243,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document15]
+[Document14]
 DocumentPath=Library\LogicTranslator.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -275,7 +259,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document16]
+[Document15]
 DocumentPath=Library\MLX_87833.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -291,7 +275,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document17]
+[Document16]
 DocumentPath=Library\Power.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -307,7 +291,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document18]
+[Document17]
 DocumentPath=Library\Power.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -323,7 +307,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document19]
+[Document18]
 DocumentPath=Library\Resistor.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -339,7 +323,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document20]
+[Document19]
 DocumentPath=Library\Schottky Diode.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -355,7 +339,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document21]
+[Document20]
 DocumentPath=Library\sockets.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -371,7 +355,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document22]
+[Document21]
 DocumentPath=Library\SMT 0603.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -387,7 +371,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document23]
+[Document22]
 DocumentPath=Library\Transistor.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -403,39 +387,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document24]
-DocumentPath=..\..\JTAG Carrier Board\Altium\Library\SMP 0805.PcbLib
-AnnotationEnabled=1
-AnnotateStartValue=1
-AnnotationIndexControlEnabled=0
-AnnotateSuffix=
-AnnotateScope=All
-AnnotateOrder=-1
-DoLibraryUpdate=1
-DoDatabaseUpdate=1
-ClassGenCCAutoEnabled=1
-ClassGenCCAutoRoomEnabled=1
-ClassGenNCAutoScope=None
-DItemRevisionGUID=
-GenerateClassCluster=0
-
-[Document25]
-DocumentPath=..\..\JTAG Carrier Board\Altium\Library\OpAmps.SchLib
-AnnotationEnabled=1
-AnnotateStartValue=1
-AnnotationIndexControlEnabled=0
-AnnotateSuffix=
-AnnotateScope=All
-AnnotateOrder=-1
-DoLibraryUpdate=1
-DoDatabaseUpdate=1
-ClassGenCCAutoEnabled=1
-ClassGenCCAutoRoomEnabled=1
-ClassGenNCAutoScope=None
-DItemRevisionGUID=
-GenerateClassCluster=0
-
-[Document26]
+[Document23]
 DocumentPath=Laser_Driver.PcbDoc
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -451,7 +403,7 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document27]
+[Document24]
 DocumentPath=CAMtastic1.Cam
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -467,8 +419,24 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 
-[Document28]
+[Document25]
 DocumentPath=CAMtastic2.Cam
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=-1
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=1
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+
+[Document26]
+DocumentPath=driver.SchDoc
 AnnotationEnabled=1
 AnnotateStartValue=1
 AnnotationIndexControlEnabled=0
