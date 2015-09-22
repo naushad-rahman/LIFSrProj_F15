@@ -11,6 +11,7 @@ import pyqtgraph as pg              #Initiation of plotting code
 import serial                       #Communication with the serial port is done using the pySerial 2.7 package
 from datetime import datetime       #Allows us to look at current date and time
 import numpy as np
+from Tkinter import *
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
@@ -293,3 +294,61 @@ timer.start(0)
 
 ## Start the Qt event loop
 app.exec_()
+
+# Prompts the user to add a description for the test data and saves it in RecordedData\TestNotes.txt
+## Tkinter is used to create this window
+testNotes = Tk()
+
+## The label telling the user what to do
+l = Label(testNotes, text = "Describe your experiment here.")
+l.pack(padx = 10, pady = 10, anchor = W)
+
+## The textbow where the notes are written
+textBox = Text(testNotes)
+textBox.pack(padx = 10)
+textBox.focus_set()
+
+## Checkboxes are used to add some tags to the data
+checks = Frame(testNotes)
+checks.pack()
+
+## Variables showing if the boxes are checked (1) or not (0)
+broken = IntVar()
+success = IntVar()
+wrong = IntVar()
+
+## Create the checkboxes
+brokenCheck = Checkbutton(testNotes, text="Equipment failure", variable=broken, onvalue = 1, offvalue = 0)
+successCheck = Checkbutton(testNotes, text="Successful experiment", variable=success, onvalue = 1, offvalue = 0)
+wrongCheck = Checkbutton(testNotes, text="I just don't know what went wrong", variable=wrong, onvalue = 1, offvalue = 0)
+brokenCheck.pack(in_ = checks, side = LEFT, padx = 10)
+successCheck.pack(in_ = checks, side = LEFT, padx = 10)
+wrongCheck.pack(in_ = checks, side = LEFT, padx = 10)
+
+## This function runs when the submit button is pressed
+def submit():
+	## save the text in the box
+    text = textBox.get("1.0",'end-1c').strip()
+	## add to the front of the text if any of the boxes were checked
+    if wrong.get() == 1:
+        text = "[I just don't know what went wrong]\n" + text
+    if broken.get() == 1:
+        text = "[Equipment failure]\n" + text
+    if success.get() == 1:
+        text = "[Successful experiment]\n" + text
+	## If the user didn't write anything or check any boxes, add some text noting that
+    if text == "":
+        text = "[No notes were included for this test.]"
+    ## Write to the file
+    fNote = open('RecordedData\\TestNotes.txt','a')
+    fNote.write("\n\n***" + fileName + "***\n" + text + "\n")
+    fNote.close()
+	## Close the window
+    testNotes.destroy()
+
+## The submit button
+submitButton = Button(testNotes, text = "Submit", width = 10, command = submit)
+submitButton.pack(pady = 10)
+
+## This actually runs the prompt
+testNotes.mainloop()
