@@ -11,7 +11,7 @@ import pyqtgraph as pg              #Initiation of plotting code
 import serial                       #Communication with the serial port is done using the pySerial 2.7 package
 from datetime import datetime       #Allows us to look at current date and time
 import numpy as np
-from Tkinter import *
+from Tkinter import *				#For the notes prompt
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
