@@ -12,6 +12,8 @@ import serial                       #Communication with the serial port is done 
 from datetime import datetime       #Allows us to look at current date and time
 import numpy as np
 from Tkinter import *				#For the notes prompt
+import json
+from time import strftime
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
@@ -185,7 +187,8 @@ firstRun = True
 
 ## Create new file, with the name being today's date and current time and write headings to file in CSV format
 i = datetime.now()
-fileName = str(i.year) + str(i.month) + str(i.day) + "_" + str(i.hour) + str(i.minute) + str(i.second) + ".csv"
+#fileName = str(i.year) + str(i.month) + str(i.day) + "_" + str(i.hour) + str(i.minute) + str(i.second) + ".csv"
+fileName = strftime("%Y%m%d_%H%M%S.csv")
 
 ## File is saved to Documents/IPython Notebooks/RecordedData
 f = open('RecordedData\\' + fileName, 'a')
@@ -284,7 +287,8 @@ def update():
     if(showNow == True):
         data = np.loadtxt(open('RecordedData\\' + fileName,"rb"),delimiter=",",skiprows=2)
         numSamples2 = data.shape[0]
-        pmtCurve2.setData(data[:,1])
+        if(len(data) > 0):
+            pmtCurve2.setData(data[:,1])
 			
         
 ## Run update function in response to a timer    
@@ -325,6 +329,10 @@ brokenCheck.pack(in_ = checks, side = LEFT, padx = 10)
 successCheck.pack(in_ = checks, side = LEFT, padx = 10)
 wrongCheck.pack(in_ = checks, side = LEFT, padx = 10)
 
+## Dictionary for keeping track of tags
+with open('RecordedData\\tags.json', 'r') as fp:
+    checkDict = json.load(fp)
+
 ## This function runs when the submit button is pressed
 def submit():
 	## save the text in the box
@@ -332,10 +340,13 @@ def submit():
 	## add to the front of the text if any of the boxes were checked
     if wrong.get() == 1:
         text = "[I just don't know what went wrong]\n" + text
+        checkDict['wrong'].append(fileName)
     if broken.get() == 1:
         text = "[Equipment failure]\n" + text
+        checkDict['broken'].append(fileName)
     if success.get() == 1:
         text = "[Successful experiment]\n" + text
+        checkDict['success'].append(fileName)
 	## If the user didn't write anything or check any boxes, add some text noting that
     if text == "":
         text = "[No notes were included for this test.]"
@@ -343,6 +354,9 @@ def submit():
     fNote = open('RecordedData\\TestNotes.txt','a')
     fNote.write("\n\n***" + fileName + "***\n" + text + "\n")
     fNote.close()
+    ## Write tags to .json file
+    with open('RecordedData\\tags.json', 'w') as fp:
+        json.dump(checkDict, fp)
 	## Close the window
     testNotes.destroy()
 
