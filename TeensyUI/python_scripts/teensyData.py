@@ -1,7 +1,7 @@
 #HV Control &
 #Read and Plot from the PMT
 
-#This code is to record the data that is received into the Teensy's ADC. 
+#This code is to record the data that is received into the Teensy's ADC.
 #Includes the HV control and replotting the results at the end.
 
 #See CSV Dataplot notebook to plot old experiment data.
@@ -36,7 +36,7 @@ def startButtonClicked():
         teensySerialData.flushInput() #empty serial buffer for input from the teensy
         startBtnClicked = True
         startBtn.setText('Stop')
-            
+
     elif (startBtnClicked == True):
         startBtnClicked = False
         startBtn.setText('Start')
@@ -51,14 +51,14 @@ def quitButtonClicked():
 def quitButtonClicked2():
     global quitBtnClicked2
     quitBtnClicked2 = True
-    
+
 ## Buttons to control the High Voltage
 def HVoffButtonClicked():
     teensySerialData.write('0')
     print("HV Off")
 
 def HVonButtonClicked():
-    teensySerialData.write('1')	
+    teensySerialData.write('1')
     print("HV On")
 
 def insertionButtonClicked():
@@ -68,7 +68,7 @@ def insertionButtonClicked():
 def separationButtonClicked():
     teensySerialData.write('2')
     print("Separation")
-    
+
 #Start Recording in Widget
 ## Create widgets to be placed inside
 
@@ -123,15 +123,15 @@ pmtCurve2 = pmtPlotWidget2.plot()
 lowerBoundValue2 = 0
 upperBoundValue2 = xSamples
 pmtPlotWidget2.setXRange(0, upperBoundValue2)
-   
+
 ## Create a grid layout to manage the widgets size and position
 layout2 = QtGui.QGridLayout()
 w2.setLayout(layout2)
-    
+
 ## Add widgets to the layout in their proper positions
 layout2.addWidget(quitBtn2, 0, 0)
 layout2.addWidget(pmtPlotWidget2, 1, 2, 1, 1)  # wGL goes on right side, spanning 3 rows
-     
+
 ## Display the widget as a new window
 w2.show()
 
@@ -212,7 +212,7 @@ def update():
     global timeElapsed
     global timeElapsedPrev
     global firstRun
-    
+
     ## The number of bytes currently waiting to be read in.
     ## We want to read these values as soon as possible, because
     ## we will lose them if the buffer fills up
@@ -220,55 +220,55 @@ def update():
     runCount = bufferSize/8 # since we write 8 bytes at a time, we similarly want to read them 8 at a time
     while (runCount > 0):
         if (startBtnClicked == True):
-        
+
             #Read in time (int) and PMT output (float with up to 5 decimal places)
-            
+
             temp = []
             temp.append(teensySerialData.readline().strip().split(',') )
-            
+
             timeElapsedPrev = timeElapsed
             timeElapsed = int (temp[0][0])
-            
+
             if (firstRun == True):
                 ## Only run once to ensure buffer is completely flushed
                 firstRun = False
                 teensySerialData.flushInput()
                 break
-                
+
             # We'll add all our values to this string until we're ready to exit the loop, at which point it will be written to a file
             stringToWrite = str(timeElapsed) + ","
-            
-            ## This difference calucalted in the if statement is the amount of time in microseconds since the last value 
-            ## we read in and wrote to a file. If this value is significantly greater than 100, we know we have missed some 
+
+            ## This difference calucalted in the if statement is the amount of time in microseconds since the last value
+            ## we read in and wrote to a file. If this value is significantly greater than 100, we know we have missed some
             ## values, probably as a result of the buffer filling up and scrapping old values to make room for new values.
             ## The number we print out will be the approximate number of values we failed to read in.
             ## This is useful to determine if your code is running too slow
             if (timeElapsed - timeElapsedPrev > 8000):
                 print(str((timeElapsed-timeElapsedPrev)/7400))
-                
+
             numData = float (temp[0][1])
-            
+
             pmtData.append(numData)
             stringToWrite = stringToWrite + str(numData) + '\n'
             f.write(stringToWrite)
             graphCount = graphCount + 1
             xRightIndex = xRightIndex + 1
         runCount = runCount - 1
-        
+
     ## We will start plotting when the start button is clicked
     if startBtnClicked == True:
         if (graphCount >= 100): #We will plot new values once we have this many values to plot
             if (xLeftIndex == 0):
                 ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
                 pmtPlotWidget.clear()
-                
+
             ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
             ## Documentation for these types can be found on pyqtgraph's website
 
             pmtCurve = pmtPlotWidget.plot()
             xRange = range(xLeftIndex,xRightIndex)
             pmtCurve.setData(xRange, pmtData)
-            
+
             ## Now that we've plotting the values, we no longer need these arrays to store them
             pmtData = []
             xLeftIndex = xRightIndex
@@ -277,21 +277,21 @@ def update():
                 xRightIndex = 0
                 xLeftIndex = 0
                 pmtData = []
-                
+
     if(quitBtnClicked == True):
         ## Close the file and close the window. Performing this action here ensures values we want to write to the file won't be cut off
         f.close()
         w.close()
-    if(quitBtnClicked2 == True):   
+    if(quitBtnClicked2 == True):
         w2.close()
     if(showNow == True):
         data = np.loadtxt(open('RecordedData\\' + fileName,"rb"),delimiter=",",skiprows=2)
         numSamples2 = data.shape[0]
         if(len(data) > 0):
             pmtCurve2.setData(data[:,1])
-			
-        
-## Run update function in response to a timer    
+
+
+## Run update function in response to a timer
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(0)
@@ -335,21 +335,20 @@ with open('RecordedData\\tags.json', 'r') as fp:
 
 ## This function runs when the submit button is pressed
 def submit():
-	## save the text in the box
+    ## save the text in the box
     text = textBox.get("1.0",'end-1c').strip()
-	## add to the front of the text if any of the boxes were checked
-    if wrong.get() == 1:
-        text = "[I just don't know what went wrong]\n" + text
-        checkDict['wrong'].append(fileName)
-    if broken.get() == 1:
-        text = "[Equipment failure]\n" + text
-        checkDict['broken'].append(fileName)
-    if success.get() == 1:
-        text = "[Successful experiment]\n" + text
-        checkDict['success'].append(fileName)
-	## If the user didn't write anything or check any boxes, add some text noting that
+    ## If the user didn't write anything, add some text noting that
     if text == "":
         text = "[No notes were included for this test.]"
+    ## create new dictionary entry
+    checkDict[fileName] = {"success": success.get(), "broken": broken.get(), "wrong": wrong.get(), "text": text}
+    ## add to the front of the text if any of the boxes were checked
+    if wrong.get() == 1:
+        text = "[I just don't know what went wrong]\n" + text
+    if broken.get() == 1:
+        text = "[Equipment failure]\n" + text
+    if success.get() == 1:
+        text = "[Successful experiment]\n" + text
     ## Write to the file
     fNote = open('RecordedData\\TestNotes.txt','a')
     fNote.write("\n\n***" + fileName + "***\n" + text + "\n")
@@ -357,7 +356,7 @@ def submit():
     ## Write tags to .json file
     with open('RecordedData\\tags.json', 'w') as fp:
         json.dump(checkDict, fp)
-	## Close the window
+    ## Close the window
     testNotes.destroy()
 
 ## The submit button
