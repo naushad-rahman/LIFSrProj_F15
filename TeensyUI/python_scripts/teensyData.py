@@ -14,6 +14,7 @@ from time import strftime           #Allows for better formatting of time
 import numpy as np
 from Tkinter import *               #For the notes prompt
 import json                         #For saving tags
+import pprint
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
@@ -220,15 +221,19 @@ def update():
     runCount = bufferSize/8 # since we write 8 bytes at a time, we similarly want to read them 8 at a time
     while (runCount > 0):
         if (startBtnClicked == True):
-
-            #Read in time (int) and PMT output (float with up to 5 decimal places)
-
-            temp = []
-            temp.append(teensySerialData.readline().strip().split(',') )
-
+            #Bytes read in and stored in a char array of size eight
+            inputBytes = teensySerialData.read(size = 8)
+            #The ord function converts a char to its corresponding ASCII integer, which we can then convert to a float
+            timeByte3 = float(ord(inputBytes[0]))
+            timeByte2 = float(ord(inputBytes[1]))
+            timeByte1 = float(ord(inputBytes[2]))
+            timeByte0 = float(ord(inputBytes[3]))
+            pmtByte1 = float(ord(inputBytes[4]))
+            pmtByte0 = float(ord(inputBytes[5]))
+            pdByte1 = float(ord(inputBytes[6]))
+            pdByte0 = float(ord(inputBytes[7]))
             timeElapsedPrev = timeElapsed
-            timeElapsed = int (temp[0][0])
-
+            timeElapsed = timeByte3*256*256*256 + timeByte2*256*256 + timeByte1*256 + timeByte0 #There are 8 bits in a byte, 2^8 = 256
             if (firstRun == True):
                 ## Only run once to ensure buffer is completely flushed
                 firstRun = False
@@ -243,13 +248,21 @@ def update():
             ## values, probably as a result of the buffer filling up and scrapping old values to make room for new values.
             ## The number we print out will be the approximate number of values we failed to read in.
             ## This is useful to determine if your code is running too slow
-            if (timeElapsed - timeElapsedPrev > 8000):
-                print(str((timeElapsed-timeElapsedPrev)/7400))
+            #if (timeElapsed - timeElapsedPrev > 8000):
+            #    print(str((timeElapsed-timeElapsedPrev)/7400))
+            if (timeElapsed - timeElapsedPrev > 150):
+                print("missed time: " + str((timeElapsed-timeElapsedPrev)/100))
 
-            numData = float (temp[0][1])
-
-            pmtData.append(numData)
-            stringToWrite = stringToWrite + str(numData) + '\n'
+            numData = pmtByte1*256 + pmtByte0
+            numData = numData*3.3/1024
+            numDataRounded = numData - numData%.001 #Round voltage value to 3 decimal points
+            pmtData.append(numDataRounded)
+            stringToWrite = stringToWrite + str(numDataRounded) + ","
+            numData = pdByte1*256 + pdByte0
+            numData = numData*3.3/1024
+            numDataRounded = numData - numData%.001
+            #pdData.append(numDataRounded)
+            stringToWrite = stringToWrite + str(numDataRounded) + '\n'
             f.write(stringToWrite)
             graphCount = graphCount + 1
             xRightIndex = xRightIndex + 1

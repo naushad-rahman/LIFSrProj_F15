@@ -27,11 +27,21 @@ void SampleVoltage() {
   serialBytes[5] = pmt & 0xff;
   serialBytes[6] = (pd >> 8) & 0xff;
   serialBytes[7] = pd & 0xff;
+
+//  serialBytes[0] = 0;
+//  serialBytes[1] = 0;
+//  serialBytes[2] = 0;
+//  serialBytes[3] = 0;
+//  serialBytes[4] = 0;
+//  serialBytes[5] = 0;
+//  serialBytes[6] = 0;
+//  serialBytes[7] = 0;
+  
   Serial.write(serialBytes,8);
 }
 
 void timer_setup() {
-  timer0.begin(SampleVoltage, 100);  //SampleVoltage will run every 100 us
+  timer0.begin(SampleVoltage, 150);  //SampleVoltage will run every 100 us
 }
   
 void timer_stop() {
