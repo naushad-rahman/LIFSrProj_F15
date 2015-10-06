@@ -1,6 +1,8 @@
-from Tkinter import *               #For prompt
+from Tkinter import *               #For window
+import tkMessageBox                 #For error message box
 import json                         #For tags
 
+## Create window
 chooseTag = Tk()
 instr = Label(chooseTag, text = "Which tag(s) to filter for?")
 instr.pack(padx = 10, pady = 10, anchor = W)
@@ -42,22 +44,27 @@ verbose = IntVar()
 verboseCheck = Checkbutton(chooseTag, text="Show full text", variable=verbose, onvalue = 1, offvalue = 0)
 verboseCheck.pack(pady = 10)
 
+## code for submit button
 def submit():
+    ## Create an error message box if the user tries to include and exclude the same tag.
     if ((excludeBroken.get() == 1 and includeBroken.get() == 1) or (excludeSuccess.get() == 1 and includeSuccess.get() == 1) or (excludeWrong.get() == 1 and includeWrong.get() == 1)):
         tkMessageBox.showerror("ERROR", "Cannot include and exclude a tag.")
     else:
+	    ## Load the tags into a dictionary
         with open('RecordedData\\tags.json', 'r') as fp:
             checkDict = json.load(fp)
         outputList = []
+		## Iterate through the tags and save any that match the check boxes
         for key in checkDict:
-            if ((includeBroken.get() == 1 and checkDict[key]["broken"] == False) or (excludeBroken.get() == 1 and checkDict[key]["broken"] == True)):
+            if ((includeBroken.get() == 1 and checkDict[key]["broken"] == 0) or (excludeBroken.get() == 1 and checkDict[key]["broken"] == 1)):
                 continue
-            elif ((includeSuccess.get() == 1 and checkDict[key]["success"] == False) or (excludeSuccess.get() == 1 and checkDict[key]["success"] == True)):
+            elif ((includeSuccess.get() == 1 and checkDict[key]["success"] == 0) or (excludeSuccess.get() == 1 and checkDict[key]["success"] == 1)):
                 continue
-            elif ((includeWrong.get() == 1 and checkDict[key]["wrong"] == False) or (excludeWrong.get() == 1 and checkDict[key]["wrong"] == True)):
+            elif ((includeWrong.get() == 1 and checkDict[key]["wrong"] == 0) or (excludeWrong.get() == 1 and checkDict[key]["wrong"] == 1)):
                 continue
             else:
                 outputList.append(key)
+		## Create the output
         output = ""
         for outkey in sorted(outputList):
             output += "***" + outkey + "***"
@@ -72,13 +79,14 @@ def submit():
             output += "\n\n"
         if output == "":
             output = "No results."
+        ## close the prompt window
         chooseTag.destroy()
+		## Create a new window with a textbox showing the results
         outputWindow = Tk()
         textBox = Text(outputWindow)
         textBox.pack(padx = 10, pady = 10)
         textBox.focus_set()
         textBox.insert(END, output)
-
 
 submitButton = Button(chooseTag, text = "Submit", width = 10, command = submit)
 submitButton.pack(pady = 10)
