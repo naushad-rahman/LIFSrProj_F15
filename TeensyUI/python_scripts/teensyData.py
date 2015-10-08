@@ -14,7 +14,8 @@ from time import strftime           #Allows for better formatting of time
 import numpy as np
 from Tkinter import *               #For the notes prompt
 import json                         #For saving tags
-import pprint
+import threading                    #For multithreading
+import pprint                       #For pretty debug printing
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
@@ -25,9 +26,6 @@ w.resize(1000,600)
 w.setWindowTitle('Voltage Plots')
 
 startBtnClicked = False
-quitBtnClicked = False
-quitBtnClicked2 = False
-showNow = False
 
 ## This function contains the behavior we want to see when the start button is clicked
 def startButtonClicked():
@@ -38,20 +36,39 @@ def startButtonClicked():
         startBtnClicked = True
         startBtn.setText('Stop')
 
+        #start threads
+        serial_read_thread = serialReadThread()
+        serial_read_thread.daemon = True
+        serial_read_thread.start()
+        data_worker_thread = dataWorkerThread()
+        data_worker_thread.daemon = True
+        data_worker_thread.start()
+        graphing_thread = graphingThread()
+        graphing_thread.daemon = True
+        graphing_thread.start()
+
     elif (startBtnClicked == True):
         startBtnClicked = False
         startBtn.setText('Start')
 
+file_open_sema = Semaphore()
+
 ## Below at the end of the update function we check the value of quitBtnClicked
 def quitButtonClicked():
-    global quitBtnClicked
-    global showNow
-    quitBtnClicked = True
-    showNow = True
+    ## Close the file and close the window.
+    file_open_sema.acquire()
+    f.close()
+    file_open_sema.release()
+    w.close()
+
+    #showNow = True
+    data = np.loadtxt(open('RecordedData\\' + fileName,"rb"),delimiter=",",skiprows=2)
+        numSamples2 = data.shape[0]
+        if(len(data) > 0):
+            pmtCurve2.setData(data[:,1])
 
 def quitButtonClicked2():
-    global quitBtnClicked2
-    quitBtnClicked2 = True
+    w2.close()
 
 ## Buttons to control the High Voltage
 def HVoffButtonClicked():
@@ -202,43 +219,59 @@ f.write("Timestamp,PMT\n")
 ## window containing the TeensyDataWrite.ino code
 
 teensySerialData = serial.Serial("COM4", 115200)
+inputBytes = []
+recieved_data = Queue()
+#data_to_graph = Queue()
+graph_sema = Semaphore()
 
-def update():
-    ## Set global precedence to previously defined values
-    global xSamples
-    global xRightIndex
-    global xLeftIndex
-    global pmtData
-    global graphCount
-    global timeElapsed
-    global timeElapsedPrev
-    global firstRun
+class serialReadThread (threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(self):
+        ## Set global precedence to previously defined values
+        global firstRun
+        global startBtnClicked
 
-    ## The number of bytes currently waiting to be read in.
-    ## We want to read these values as soon as possible, because
-    ## we will lose them if the buffer fills up
-    bufferSize = teensySerialData.inWaiting()
-    runCount = bufferSize/8 # since we write 8 bytes at a time, we similarly want to read them 8 at a time
-    while (runCount > 0):
-        if (startBtnClicked == True):
-            #Bytes read in and stored in a char array of size eight
+        while (startBtnClicked):
             inputBytes = teensySerialData.read(size = 8)
-            #The ord function converts a char to its corresponding ASCII integer, which we can then convert to a float
-            timeByte3 = float(ord(inputBytes[0]))
-            timeByte2 = float(ord(inputBytes[1]))
-            timeByte1 = float(ord(inputBytes[2]))
-            timeByte0 = float(ord(inputBytes[3]))
-            pmtByte1 = float(ord(inputBytes[4]))
-            pmtByte0 = float(ord(inputBytes[5]))
-            pdByte1 = float(ord(inputBytes[6]))
-            pdByte0 = float(ord(inputBytes[7]))
-            timeElapsedPrev = timeElapsed
-            timeElapsed = timeByte3*256*256*256 + timeByte2*256*256 + timeByte1*256 + timeByte0 #There are 8 bits in a byte, 2^8 = 256
             if (firstRun == True):
                 ## Only run once to ensure buffer is completely flushed
                 firstRun = False
                 teensySerialData.flushInput()
                 break
+            #Bytes read in and stored in a char array of size eight
+            recieved_data.put(inputBytes)
+
+class dataWorkerThread (threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(self):
+        global timeElapsed
+        global timeElapsedPrev
+        global xRightIndex
+        global pmtData
+        global startBtnClicked
+
+        while (startBtnClicked):
+            #Get data to work with from queue
+            working_data = recieved_data.get()
+            file_open_sema.acquire()
+
+            #The ord function converts a char to its corresponding ASCII integer, which we can then convert to a float
+            timeByte3 = float(ord(working_data[0]))
+            timeByte2 = float(ord(working_data[1]))
+            timeByte1 = float(ord(working_data[2]))
+            timeByte0 = float(ord(working_data[3]))
+            pmtByte1 = float(ord(working_data[4]))
+            pmtByte0 = float(ord(working_data[5]))
+            pdByte1 = float(ord(working_data[6]))
+            pdByte0 = float(ord(working_data[7]))
+
+            #tell queue we're done with the data    (hopefully this goes here)
+            recieved_data.task_done()
+
+            timeElapsedPrev = timeElapsed
+            timeElapsed = timeByte3*256*256*256 + timeByte2*256*256 + timeByte1*256 + timeByte0 #There are 8 bits in a byte, 2^8 = 256
 
             # We'll add all our values to this string until we're ready to exit the loop, at which point it will be written to a file
             stringToWrite = str(timeElapsed) + ","
@@ -256,7 +289,12 @@ def update():
             numData = pmtByte1*256 + pmtByte0
             numData = numData*3.3/1024
             numDataRounded = numData - numData%.001 #Round voltage value to 3 decimal points
+
+            graph_sema.acquire()
             pmtData.append(numDataRounded)
+            xRightIndex = xRightIndex + 1
+            graph_sema.release()
+
             stringToWrite = stringToWrite + str(numDataRounded) + ","
             numData = pdByte1*256 + pdByte0
             numData = numData*3.3/1024
@@ -264,50 +302,43 @@ def update():
             #pdData.append(numDataRounded)
             stringToWrite = stringToWrite + str(numDataRounded) + '\n'
             f.write(stringToWrite)
-            graphCount = graphCount + 1
-            xRightIndex = xRightIndex + 1
-        runCount = runCount - 1
+            file_open_sema.release()
 
-    ## We will start plotting when the start button is clicked
-    if startBtnClicked == True:
-        if (graphCount >= 100): #We will plot new values once we have this many values to plot
-            if (xLeftIndex == 0):
-                ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
-                pmtPlotWidget.clear()
+class graphingThread (threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(self):
+        global xLeftIndex
+        global xRightIndex
+        global pmtData
+        global xSamples
+        global startBtnClicked
 
-            ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
-            ## Documentation for these types can be found on pyqtgraph's website
+        while (startBtnClicked):
+            if (len(pmtData) >= 100): #We will plot new values once we have this many values to plot
+                if (xLeftIndex == 0):
+                    ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
+                    pmtPlotWidget.clear()
 
-            pmtCurve = pmtPlotWidget.plot()
-            xRange = range(xLeftIndex,xRightIndex)
-            pmtCurve.setData(xRange, pmtData)
+                ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
+                ## Documentation for these types can be found on pyqtgraph's website
 
-            ## Now that we've plotting the values, we no longer need these arrays to store them
-            pmtData = []
-            xLeftIndex = xRightIndex
-            graphCount = 0
-            if(xRightIndex >= xSamples):
-                xRightIndex = 0
-                xLeftIndex = 0
+                graph_sema.acquire()
+
+                pmtCurve = pmtPlotWidget.plot()
+                xRange = range(xLeftIndex,xRightIndex)
+                pmtCurve.setData(xRange, pmtData)
+
+                ## Now that we've plotting the values, we no longer need these arrays to store them
                 pmtData = []
+                xLeftIndex = xRightIndex
+                graphCount = 0
+                if(xRightIndex >= xSamples):
+                    xRightIndex = 0
+                    xLeftIndex = 0
+                    pmtData = []
 
-    if(quitBtnClicked == True):
-        ## Close the file and close the window. Performing this action here ensures values we want to write to the file won't be cut off
-        f.close()
-        w.close()
-    if(quitBtnClicked2 == True):
-        w2.close()
-    if(showNow == True):
-        data = np.loadtxt(open('RecordedData\\' + fileName,"rb"),delimiter=",",skiprows=2)
-        numSamples2 = data.shape[0]
-        if(len(data) > 0):
-            pmtCurve2.setData(data[:,1])
-
-
-## Run update function in response to a timer
-timer = QtCore.QTimer()
-timer.timeout.connect(update)
-timer.start(0)
+                graph_sema.release()
 
 ## Start the Qt event loop
 app.exec_()
@@ -318,12 +349,20 @@ testNotes = Tk()
 
 ## The label telling the user what to do
 l = Label(testNotes, text = "Describe your experiment here.")
-l.pack(padx = 10, pady = 10, anchor = W)
+l.pack(padx = 10, pady = 5, anchor = W)
 
-## The textbow where the notes are written
+## The textbox where the notes are written
 textBox = Text(testNotes)
-textBox.pack(padx = 10)
+textBox.pack(padx = 10, pady = 5)
 textBox.focus_set()
+
+## textbox for microfluidic device number
+deviceNumFrame = Frame(testNotes)
+deviceNumFrame.pack(pady = 5)
+deviceNumLabel = Label(testNotes, text = "Microfluidic device number: ")
+deviceNumEntry = Entry(testNotes)
+deviceNumLabel.pack(in_ = deviceNumFrame, side = LEFT)
+deviceNumEntry.pack(in_ = deviceNumFrame, side = LEFT)
 
 ## Checkboxes are used to add some tags to the data
 checks = Frame(testNotes)
@@ -350,12 +389,16 @@ with open('RecordedData\\tags.json', 'r') as fp:
 def submit():
     ## save the text in the box
     text = textBox.get("1.0",'end-1c').strip()
+    deviceNum = deviceNumEntry.get()
+    #deviceNum = filter(str.isdigit, deviceNumEntry.get()).rjust(3, '0')    # Uncomment this line if you don't trust the user to give a number, and change the if statement below. WARNING: Works in Python 2.7, but not Python 3
     ## If the user didn't write anything, add some text noting that
     if text == "":
         text = "[No notes were included for this test.]"
     ## create new dictionary entry
-    checkDict[fileName] = {"success": success.get(), "broken": broken.get(), "wrong": wrong.get(), "text": text}
-    ## add to the front of the text if any of the boxes were checked
+    checkDict[fileName] = {"deviceNum": deviceNum, "success": success.get(), "broken": broken.get(), "wrong": wrong.get(), "text": text}
+    ## add other data to the front of the text for printing
+    if deviceNum != "":     # If the line above was uncommented, change this to 'if deviceNum != "000":'
+        text = "[Microfluidic device #" + deviceNum + "]\n" + text
     if wrong.get() == 1:
         text = "[I just don't know what went wrong]\n" + text
     if broken.get() == 1:
@@ -378,5 +421,3 @@ submitButton.pack(pady = 10)
 
 ## This actually runs the prompt
 testNotes.mainloop()
-
-#Test comment

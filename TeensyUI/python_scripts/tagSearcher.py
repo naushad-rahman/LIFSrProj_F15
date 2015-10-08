@@ -1,11 +1,13 @@
-from Tkinter import *               #For window
-import tkMessageBox                 #For error message box
+from tkinter import *               #For window
+#import tkMessageBox                 #For error message box
 import json                         #For tags
 
 ## Create window
 chooseTag = Tk()
 instr = Label(chooseTag, text = "Which tag(s) to filter for?")
 instr.pack(padx = 10, pady = 10, anchor = W)
+deviceNumFrame = Frame(chooseTag)
+deviceNumFrame.pack(padx = 10, anchor = W)
 l = Label(chooseTag, text = "exclude   include")
 l.pack(padx = 10, pady = 10, anchor = W)
 checks = Frame(chooseTag)
@@ -16,6 +18,12 @@ successChecks = Frame(checks)
 successChecks.pack(anchor = W)
 wrongChecks = Frame(checks)
 wrongChecks.pack(anchor = W)
+
+deviceNumLabel = Label(chooseTag, text = "Microfluidic device number: ")
+deviceNumEntry = Entry(chooseTag)
+deviceNumLabel.pack(in_ = deviceNumFrame, side = LEFT)
+deviceNumEntry.pack(in_ = deviceNumFrame, side = LEFT)
+
 
 ## Variables showing if the boxes are checked (1) or not (0)
 includeBroken = IntVar()
@@ -54,9 +62,11 @@ def submit():
         with open('RecordedData\\tags.json', 'r') as fp:
             checkDict = json.load(fp)
         outputList = []
-		## Iterate through the tags and save any that match the check boxes
+		## Iterate through the tags and save any that match the check boxes and device number
         for key in checkDict:
-            if ((includeBroken.get() == 1 and checkDict[key]["broken"] == 0) or (excludeBroken.get() == 1 and checkDict[key]["broken"] == 1)):
+            if (deviceNumEntry.get() != "" and (checkDict[key]["deviceNum"] != deviceNumEntry.get())):
+                continue
+            elif ((includeBroken.get() == 1 and checkDict[key]["broken"] == 0) or (excludeBroken.get() == 1 and checkDict[key]["broken"] == 1)):
                 continue
             elif ((includeSuccess.get() == 1 and checkDict[key]["success"] == 0) or (excludeSuccess.get() == 1 and checkDict[key]["success"] == 1)):
                 continue
@@ -69,6 +79,8 @@ def submit():
         for outkey in sorted(outputList):
             output += "***" + outkey + "***"
             if verbose.get() == 1:
+                if checkDict[key]["deviceNum"] != "":
+                    output += "\n[Microfluidic device #" + checkDict[key]["deviceNum"] + "]"
                 if checkDict[outkey]["success"] == 1:
                     output += "\n[Successful experiment]"
                 if checkDict[outkey]["broken"] == 1:
