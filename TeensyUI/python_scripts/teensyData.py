@@ -15,6 +15,7 @@ import numpy as np
 from Tkinter import *               #For the notes prompt
 import json                         #For saving tags
 import threading                    #For multithreading
+import Queue
 import pprint                       #For pretty debug printing
 
 ## Always start by initializing Qt (only once per application)
@@ -43,26 +44,23 @@ def startButtonClicked():
         data_worker_thread = dataWorkerThread()
         data_worker_thread.daemon = True
         data_worker_thread.start()
-        graphing_thread = graphingThread()
-        graphing_thread.daemon = True
-        graphing_thread.start()
+        #graphing_thread = graphingThread()
+        #graphing_thread.daemon = True
+        #graphing_thread.start()
 
     elif (startBtnClicked == True):
         startBtnClicked = False
         startBtn.setText('Start')
 
-file_open_sema = Semaphore()
-
 ## Below at the end of the update function we check the value of quitBtnClicked
 def quitButtonClicked():
     ## Close the file and close the window.
-    file_open_sema.acquire()
-    f.close()
-    file_open_sema.release()
-    w.close()
+    if (startBtnClicked == False):  ##don't quit while still running.
+        f.close()
+        w.close()
 
-    #showNow = True
-    data = np.loadtxt(open('RecordedData\\' + fileName,"rb"),delimiter=",",skiprows=2)
+        #showNow = True
+        data = np.loadtxt(open('RecordedData\\' + fileName,"rb"),delimiter=",",skiprows=2)
         numSamples2 = data.shape[0]
         if(len(data) > 0):
             pmtCurve2.setData(data[:,1])
@@ -220,9 +218,9 @@ f.write("Timestamp,PMT\n")
 
 teensySerialData = serial.Serial("COM4", 115200)
 inputBytes = []
-recieved_data = Queue()
+recieved_data = Queue.Queue()
 #data_to_graph = Queue()
-graph_sema = Semaphore()
+graph_sema = threading.Semaphore()
 
 class serialReadThread (threading.Thread):
     def __init__(self):
@@ -231,14 +229,13 @@ class serialReadThread (threading.Thread):
         ## Set global precedence to previously defined values
         global firstRun
         global startBtnClicked
-
         while (startBtnClicked):
             inputBytes = teensySerialData.read(size = 8)
             if (firstRun == True):
                 ## Only run once to ensure buffer is completely flushed
                 firstRun = False
                 teensySerialData.flushInput()
-                break
+                continue
             #Bytes read in and stored in a char array of size eight
             recieved_data.put(inputBytes)
 
@@ -255,7 +252,6 @@ class dataWorkerThread (threading.Thread):
         while (startBtnClicked):
             #Get data to work with from queue
             working_data = recieved_data.get()
-            file_open_sema.acquire()
 
             #The ord function converts a char to its corresponding ASCII integer, which we can then convert to a float
             timeByte3 = float(ord(working_data[0]))
@@ -269,9 +265,12 @@ class dataWorkerThread (threading.Thread):
 
             #tell queue we're done with the data    (hopefully this goes here)
             recieved_data.task_done()
+            print("current size of queue: " + str(recieved_data.qsize()))
 
             timeElapsedPrev = timeElapsed
             timeElapsed = timeByte3*256*256*256 + timeByte2*256*256 + timeByte1*256 + timeByte0 #There are 8 bits in a byte, 2^8 = 256
+            if (timeElapsedPrev == 0):
+                timeElapsedPrev = timeElapsed   #So we won't get a warning on the first packet received.
 
             # We'll add all our values to this string until we're ready to exit the loop, at which point it will be written to a file
             stringToWrite = str(timeElapsed) + ","
@@ -302,43 +301,49 @@ class dataWorkerThread (threading.Thread):
             #pdData.append(numDataRounded)
             stringToWrite = stringToWrite + str(numDataRounded) + '\n'
             f.write(stringToWrite)
-            file_open_sema.release()
 
-class graphingThread (threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-    def run(self):
-        global xLeftIndex
-        global xRightIndex
-        global pmtData
-        global xSamples
-        global startBtnClicked
+#class graphingThread (threading.Thread):   #Use this instead of "def update():" to turn it back into a thread.
+#    def __init__(self):
+#        threading.Thread.__init__(self)
+#    def run(self):
+def update():
+    global xLeftIndex
+    global xRightIndex
+    global pmtData
+    global xSamples
+    global startBtnClicked
+    
+    #while (startBtnClicked):#used when this was a thread
+    
+    if (len(pmtData) >= 100): #We will plot new values once we have this many values to plot
+        if (xLeftIndex == 0):
+            ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
+            pmtPlotWidget.clear()
 
-        while (startBtnClicked):
-            if (len(pmtData) >= 100): #We will plot new values once we have this many values to plot
-                if (xLeftIndex == 0):
-                    ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
-                    pmtPlotWidget.clear()
+        ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
+        ## Documentation for these types can be found on pyqtgraph's website
 
-                ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
-                ## Documentation for these types can be found on pyqtgraph's website
+        graph_sema.acquire()
 
-                graph_sema.acquire()
+        pmtCurve = pmtPlotWidget.plot()
+        xRange = range(xLeftIndex,xRightIndex)
+        pmtCurve.setData(xRange, pmtData)
 
-                pmtCurve = pmtPlotWidget.plot()
-                xRange = range(xLeftIndex,xRightIndex)
-                pmtCurve.setData(xRange, pmtData)
+        ## Now that we've plotting the values, we no longer need these arrays to store them
+        pmtData = []
+        xLeftIndex = xRightIndex
+        graphCount = 0
+        if(xRightIndex >= xSamples):
+            xRightIndex = 0
+            xLeftIndex = 0
+            pmtData = []
 
-                ## Now that we've plotting the values, we no longer need these arrays to store them
-                pmtData = []
-                xLeftIndex = xRightIndex
-                graphCount = 0
-                if(xRightIndex >= xSamples):
-                    xRightIndex = 0
-                    xLeftIndex = 0
-                    pmtData = []
+        graph_sema.release()
 
-                graph_sema.release()
+## Run update function in response to a timer    
+timer = QtCore.QTimer()
+timer.timeout.connect(update)
+timer.start(0)
 
 ## Start the Qt event loop
 app.exec_()
