@@ -53,9 +53,6 @@ def startButtonClicked():
         pmt_graph_thread = pmtGraphThread()
         pmt_graph_thread.daemon = True
         pmt_graph_thread.start()
-        pd_data_thread = pdDataThread()
-        pd_data_thread.daemon = True
-        pd_data_thread.start()
         data_write_thread = dataWriteThread()
         data_write_thread.daemon = True
         data_write_thread.start()
@@ -236,11 +233,9 @@ inputBytes = []
 recieved_data = Queue.Queue()
 time_data = Queue.Queue()
 pmt_data = Queue.Queue()
-pd_data = Queue.Queue()
 time_write = Queue.Queue()
 pmt_write = Queue.Queue()
 pmt_graph = Queue.Queue()
-pd_write = Queue.Queue()
 graph_sema = threading.Semaphore()
 
 class serialReadThread (threading.Thread):
@@ -251,7 +246,7 @@ class serialReadThread (threading.Thread):
         global firstRun
         global startBtnClicked
         while (startBtnClicked):
-            inputBytes = teensySerialData.read(size = 8)
+            inputBytes = teensySerialData.read(size = 6)
             if (firstRun == True):
                 ## Only run once to ensure buffer is completely flushed
                 firstRun = False
@@ -278,13 +273,10 @@ class dataConverterThread (threading.Thread):
             timeByte0 = float(ord(working_data[3]))
             pmtByte1 = float(ord(working_data[4]))
             pmtByte0 = float(ord(working_data[5]))
-            pdByte1 = float(ord(working_data[6]))
-            pdByte0 = float(ord(working_data[7]))
 
             recieved_data.task_done()
             time_data.put([timeByte0, timeByte1, timeByte2, timeByte3])
             pmt_data.put([pmtByte0, pmtByte1])
-            pd_data.put([pdByte0, pdByte1])
             #print("current size of queue: " + str(recieved_data.qsize()))
 
 class timeDataThread (threading.Thread):
@@ -294,7 +286,7 @@ class timeDataThread (threading.Thread):
         global timeElapsed
         global timeElapsedPrev
         global startBtnClicked
-        
+
         while (startBtnClicked):
             timeBytes = time_data.get()
             timeElapsedPrev = timeElapsed
@@ -321,7 +313,7 @@ class pmtDataThread (threading.Thread):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
-        
+
         while (startBtnClicked):
             pmtBytes = pmt_data.get()
             numData = pmtBytes[1]*256 + pmtBytes[0]
@@ -338,7 +330,7 @@ class pmtGraphThread (threading.Thread):
         global xRightIndex
         global pmtData
         global startBtnClicked
-        
+
         while (startBtnClicked):
             numDataRounded = pmt_graph.get()
             graph_sema.acquire()
@@ -347,38 +339,21 @@ class pmtGraphThread (threading.Thread):
             graph_sema.release()
             pmt_graph.task_done()
 
-class pdDataThread (threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-    def run(self):
-        global startBtnClicked
-        
-        while (startBtnClicked):
-            pdBytes = pd_data.get()
-            numData = pdBytes[1]*256 + pdBytes[0]
-            numData = numData*3.3/1024
-            numDataRounded = numData - numData%.001
-            pd_data.task_done()
-            #pdData.append(numDataRounded)
-            pd_write.put(str(numDataRounded))
-
 class dataWriteThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
-        
+
         while (startBtnClicked):
             localTimeElapsed = time_write.get()
             pmtNumDataRounded = pmt_write.get()
-            pdNumDataRounded = pd_write.get()
-            
-            stringToWrite = localTimeElapsed + "," + pmtNumDataRounded + "," + pdNumDataRounded + '\n'
+
+            stringToWrite = localTimeElapsed + "," + pmtNumDataRounded + '\n'
             f.write(stringToWrite)
-            
+
             time_write.task_done()
             pmt_write.task_done()
-            pd_write.task_done()
 
 #class graphingThread (threading.Thread):   #Use this instead of "def update():" to turn it back into a thread.
 #    def __init__(self):
@@ -390,9 +365,9 @@ def update():
     global pmtData
     global xSamples
     #global startBtnClicked
-    
+
     #while (startBtnClicked):#used when this was a thread
-    
+
     if (len(pmtData) >= 100): #We will plot new values once we have this many values to plot
         if (xLeftIndex == 0):
             ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
@@ -418,11 +393,11 @@ def update():
 
         graph_sema.release()
 #    if (startBtnClicked):
-#        print("recieved_data: " + str(recieved_data.qsize()) + "    time_data:" + str(time_data.qsize()) + 
-#        "    pmt_data:" + str(pmt_data.qsize()) + "    pd_data:" + str(pd_data.qsize()) + "    time_write:" + str(time_write.qsize()) + 
-#        "    pmt_write:" + str(pmt_write.qsize()) + "    pmt_graph:" + str(pmt_graph.qsize()) + "    pd_write:" + str(pd_write.qsize()) + '\n')
+#        print("recieved_data: " + str(recieved_data.qsize()) + "    time_data:" + str(time_data.qsize()) +
+#        "    pmt_data:" + str(pmt_data.qsize()) + "    time_write:" + str(time_write.qsize()) +
+#        "    pmt_write:" + str(pmt_write.qsize()) + "    pmt_graph:" + str(pmt_graph.qsize())
 
-## Run update function in response to a timer    
+## Run update function in response to a timer
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(0)
