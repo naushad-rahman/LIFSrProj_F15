@@ -1,5 +1,5 @@
-from tkinter import *               #For window
-#import tkMessageBox                 #For error message box
+from Tkinter import *               #For window
+import tkMessageBox                 #For error message box
 import json                         #For tags
 
 ## Create window
