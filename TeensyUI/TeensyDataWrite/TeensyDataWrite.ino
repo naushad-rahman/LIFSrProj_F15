@@ -41,7 +41,7 @@ void SampleVoltage() {
 }
 
 void timer_setup() {
-  timer0.begin(SampleVoltage, 150);  //SampleVoltage will run every 100 us
+  timer0.begin(SampleVoltage, 100);  //SampleVoltage will run every 100 us
 }
   
 void timer_stop() {
