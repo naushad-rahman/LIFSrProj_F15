@@ -6,14 +6,14 @@ master = Tk()
 master.wm_title("Dr. Nordin's Superfriends")
 
 def write_data():
-	titlename = 'Device_[%s]_(%s).txt' % (e1.get(), e2.get())
+	titlename = 'Device_[%s].txt' % (e1.get())
 	if(os.path.isfile(titlename)):
 		print 'MFD DATA ALREADY EXISTS!'
 
 	else:
-
 		dir_path = os.path.dirname(os.path.realpath(__file__))
 		save_path = dir_path + '/MFD_Data/'
+		print "THIS: " + save_path
 		completeName = os.path.join(save_path, titlename)
 		f = open(completeName, 'w')
 		f.write('Device Number: \t\t\t\t\t%s\n' % e1.get())
