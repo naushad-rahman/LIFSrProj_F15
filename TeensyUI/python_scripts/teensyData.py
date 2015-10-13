@@ -494,7 +494,7 @@ def submit():
     if text == "":
         text = "[No notes were included for this test.]"
     ## create new dictionary entry
-    checkDict[fileName] = {"deviceNum": deviceNum, "deviceUsed": deviceNumEntry.get(), "laserPos": laserPosEntry,get(), "analogGain": analogGainEntry.get(),
+    checkDict[fileName] = {"deviceNum": deviceNum, "deviceUsed": deviceNumEntry.get(), "laserPos": laserPosEntry.get(), "analogGain": analogGainEntry.get(),
         "laserVolt": laserVoltEntry.get(), "pmtVolt": pmtVoltEntry.get(), "hvSettings": hvSettingsEntry.get(), "buffSol": buffSolEntry.get(),
         "fluorophore": fluorophoreEntry.get(), "fluorophoreCon": fluorophoreConEntry.get(), "success": success.get(), "broken": broken.get(),
         "wrong": wrong.get(), "text": text}
