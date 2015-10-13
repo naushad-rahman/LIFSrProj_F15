@@ -252,7 +252,7 @@ class serialReadThread (threading.Thread):
                 firstRun = False
                 teensySerialData.flushInput()
                 continue
-            #Bytes read in and stored in a char array of size eight
+            #Bytes read in and stored in a char array of size six
             recieved_data.put(inputBytes)
 
 #this is the weakest link and needs to be sped up.
@@ -419,12 +419,49 @@ textBox.pack(padx = 10, pady = 5)
 textBox.focus_set()
 
 ## textbox for microfluidic device number
-deviceNumFrame = Frame(testNotes)
-deviceNumFrame.pack(pady = 5)
+inputBoxFrame = Frame(testNotes)
+inputBoxFrame.pack(pady = 5)
 deviceNumLabel = Label(testNotes, text = "Microfluidic device number: ")
 deviceNumEntry = Entry(testNotes)
-deviceNumLabel.pack(in_ = deviceNumFrame, side = LEFT)
-deviceNumEntry.pack(in_ = deviceNumFrame, side = LEFT)
+deviceNumUsedLabel = Label(testNotes, text = "Times device has been used: ")
+deviceNumUsedEntry = Entry(testNotes)
+laserPosLabel = Label(testNotes, text = "Laser position: ")
+laserPosEntry = Entry(testNotes)
+analogGainLabel = Label(testNotes, text = "Analog gain: ")
+analogGainEntry = Entry(testNotes)
+laserVoltLabel = Label(testNotes, text = "Laser voltage: ")
+laserVoltEntry = Entry(testNotes)
+pmtVoltLabel = Label(testNotes, text = "PMT control voltage: ")
+pmtVoltEntry = Entry(testNotes)
+hvSettingsLabel = Label(testNotes, text = "HV settings: ")
+hvSettingsEntry = Entry(testNotes)
+buffSolLabel = Label(testNotes, text = "Buffer solution used: ")
+buffSolEntry = Entry(testNotes)
+fluorophoreLabel = Label(testNotes, text = "Fluorophore used: ")
+fluorophoreEntry = Entry(testNotes)
+fluorophoreConLabel = Label(testNotes, text = "Fluorophore concentration: ")
+fluorophoreConEntry = Entry(testNotes)
+
+deviceNumLabel.pack(in_ = inputBoxFrame, side = LEFT)
+deviceNumEntry.pack(in_ = inputBoxFrame, side = LEFT)
+deviceNumUsedLabel.pack(in_ = inputBoxFrame, side = LEFT)
+deviceNumUsedEntry.pack(in_ = inputBoxFrame, side = LEFT)
+laserPosLabel.pack(in_ = inputBoxFrame, side = LEFT)
+laserPosEntry.pack(in_ = inputBoxFrame, side = LEFT)
+analogGainLabel.pack(in_ = inputBoxFrame, side = LEFT)
+analogGainEntry.pack(in_ = inputBoxFrame, side = LEFT)
+laserVoltLabel.pack(in_ = inputBoxFrame, side = LEFT)
+laserVoltEntry.pack(in_ = inputBoxFrame, side = LEFT)
+pmtVoltLabel.pack(in_ = inputBoxFrame, side = LEFT)
+pmtVoltEntry.pack(in_ = inputBoxFrame, side = LEFT)
+hvSettingsLabel.pack(in_ = inputBoxFrame, side = LEFT)
+hvSettingsEntry.pack(in_ = inputBoxFrame, side = LEFT)
+buffSolLabel.pack(in_ = inputBoxFrame, side = LEFT)
+buffSolEntry.pack(in_ = inputBoxFrame, side = LEFT)
+fluorophoreLabel.pack(in_ = inputBoxFrame, side = LEFT)
+fluorophoreEntry.pack(in_ = inputBoxFrame, side = LEFT)
+fluorophoreConLabel.pack(in_ = inputBoxFrame, side = LEFT)
+fluorophoreConEntry.pack(in_ = inputBoxFrame, side = LEFT)
 
 ## Checkboxes are used to add some tags to the data
 checks = Frame(testNotes)
@@ -457,7 +494,10 @@ def submit():
     if text == "":
         text = "[No notes were included for this test.]"
     ## create new dictionary entry
-    checkDict[fileName] = {"deviceNum": deviceNum, "success": success.get(), "broken": broken.get(), "wrong": wrong.get(), "text": text}
+    checkDict[fileName] = {"deviceNum": deviceNum, "deviceUsed": deviceNumEntry.get(), "laserPos": laserPosEntry,get(), "analogGain": analogGainEntry.get(),
+        "laserVolt": laserVoltEntry.get(), "pmtVolt": pmtVoltEntry.get(), "hvSettings": hvSettingsEntry.get(), "buffSol": buffSolEntry.get(),
+        "fluorophore": fluorophoreEntry.get(), "fluorophoreCon": fluorophoreConEntry.get(), "success": success.get(), "broken": broken.get(),
+        "wrong": wrong.get(), "text": text}
     ## add other data to the front of the text for printing
     if deviceNum != "":     # If the line above was uncommented, change this to 'if deviceNum != "000":'
         text = "[Microfluidic device #" + deviceNum + "]\n" + text
