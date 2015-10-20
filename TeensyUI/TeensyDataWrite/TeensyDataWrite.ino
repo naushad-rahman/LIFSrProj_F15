@@ -8,7 +8,7 @@ program, Teensy Data.
 
 int pmt;
 int pd;
-int time;
+unsigned long time;
 IntervalTimer timer0;
 
 //Function we will run in response to a 100 us timer
@@ -39,7 +39,7 @@ void SampleVoltage() {
 }
 
 void timer_setup() {
-  timer0.begin(SampleVoltage, 100);  //SampleVoltage will run every 100 us
+  timer0.begin(SampleVoltage, 125);  //SampleVoltage will run every 100 us
 }
   
 void timer_stop() {
