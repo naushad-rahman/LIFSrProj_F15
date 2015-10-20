@@ -45,15 +45,15 @@ def key(event):
 		print( 'Normal Key %r' % event.char )
 		if event.char == '4':
 			print( 'Distance set to 1500 microns' )
-			distance_text = 1500
+			distance_text = 3000
 			setTextBox("1.0", "1.24", "Distance changed to 1500.")
 		elif event.char == '3':
 			print( 'Distance set to 200 microns' )
-			distance_text = 200
+			distance_text = 400
 			setTextBox("1.0", "1.24", "Distance changed to 200.")
 		elif event.char == '2':
 			print( 'Distance set to 50 microns' )
-			distance_text = 50
+			distance_text = 100
 			setTextBox("1.0", "1.24", "Distance changed to 50. ")
 		elif event.char == '1':
 			print( 'Distance set to 10 microns' )
@@ -86,14 +86,12 @@ def key(event):
 		elif event.char == 'y':
 			print( 'Testing Y movement' )
 			runTestY()
-		else:
+        elif event.char == 'm':
+            print('Running microstep test')
+            runMicroStep()
+            print('Done')
+        else:
 			print( 'Key not recognized.' )
-	elif len(event.char) == 1:
-		#Punctuation, return and ctrl
-		print ( 'Punct. %r (%r)' % (event.keysym, event.char) )
-	else:
-		#this is everything else. f1 to f12, shift, yeah...
-		print ( 'Special Key %r' % event.keysym )
 
 def change_port(value):
 	ser.port = value
@@ -115,6 +113,11 @@ def runTestZ():
 	send_movement_command(1,'z','-',10)
 	time.sleep(1)
 	send_movement_command(1,'z','+',10)
+    
+def runMicroStep():
+    for x in range(0,200):
+                send_movement_command(1,'y','+',1)
+                send_movement_command(1,'x','+',1)
 	
 def runTestX(): 
 	send_movement_command(1,'x','-',1500)
