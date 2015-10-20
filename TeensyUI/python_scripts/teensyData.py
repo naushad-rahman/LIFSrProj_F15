@@ -230,6 +230,9 @@ f.write("Timestamp,PMT\n")
 ## window containing the TeensyDataWrite.ino code
 
 teensySerialData = serial.Serial("COM4", 115200)
+usecBetweenPackets = 100
+packetsRecieved = 0
+
 inputBytes = []
 recieved_data = deque()
 time_data = deque()
@@ -238,6 +241,9 @@ time_write = deque()
 pmt_write = deque()
 pmt_graph = deque()
 graph_sema = threading.Semaphore()
+
+startTime = 0;
+endTime = 0;
 
 class serialReadThread (threading.Thread):
     def __init__(self):
@@ -309,6 +315,7 @@ class timeDataThread (threading.Thread):
             timeElapsedPrev = timeElapsed
             timeElapsed = timeBytes[3]*256*256*256 + timeBytes[2]*256*256 + timeBytes[1]*256 + timeBytes[0] #There are 8 bits in a byte, 2^8 = 256
             if (timeElapsedPrev == 0):
+                startTime = timeElapsed
                 timeElapsedPrev = timeElapsed   #So we won't get a warning on the first packet received.
 
             # We'll add all our values to this string until we're ready to exit the loop, at which point it will be written to a file
@@ -321,8 +328,8 @@ class timeDataThread (threading.Thread):
             ## This is useful to determine if your code is running too slow
             #if (timeElapsed - timeElapsedPrev > 8000):
             #    print(str((timeElapsed-timeElapsedPrev)/7400))
-            if (timeElapsed - timeElapsedPrev > 190):
-                print("missed time: " + str((timeElapsed-timeElapsedPrev)/125))
+            if (timeElapsed - timeElapsedPrev > (usecBetweenPackets*1.5)):
+                print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
 
 class pmtDataThread (threading.Thread):
     def __init__(self):
@@ -372,6 +379,7 @@ class dataWriteThread (threading.Thread):
 
             stringToWrite = localTimeElapsed + "," + pmtNumDataRounded + '\n'
             f.write(stringToWrite)
+            packetsRecieved += 1
 
 #class graphingThread (threading.Thread):   #Use this instead of "def update():" to turn it back into a thread.
 #    def __init__(self):                    #But it appears that this can't be a seperate thread because of Qt stuff
@@ -419,6 +427,13 @@ def update():
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(0)
+
+#check how many packets were missed
+endTime = timeElapsedPrev
+packetsSent = (endTime - startTime) / usecBetweenPackets
+packetsMissed = packetsSent - packetsRecieved
+percentageMissed = (float(packetsMissed) / float(packetsSent)) * 100.0
+print("You missed " + str(packetsMissed) + " out of " + str(packetsSent) + " packets sent. (" + str(percentageMissed) + "%)")
 
 ## Start the Qt event loop
 app.exec_()
