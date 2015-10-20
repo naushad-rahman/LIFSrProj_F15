@@ -208,8 +208,8 @@ graphCount = 0
 
 ## Time values in microseconds read from the teensy are stored in these variables
 ## Before timeElapsed is updated, we store its old value in timeElapsedPrev
-timeElapsed = 0
-timeElapsedPrev = 0
+timeElapsed = 0L
+timeElapsedPrev = 0L
 
 ## Determines if we are running through the update loop for the first time
 firstRun = True
@@ -231,7 +231,7 @@ f.write("Timestamp,PMT\n")
 
 teensySerialData = serial.Serial("COM4", 115200)
 usecBetweenPackets = 100
-packetsRecieved = 0
+packetsRecieved = 0L
 
 inputBytes = []
 recieved_data = deque()
@@ -242,8 +242,8 @@ pmt_write = deque()
 pmt_graph = deque()
 graph_sema = threading.Semaphore()
 
-startTime = 0;
-endTime = 0;
+startTime = 0L;
+endTime = 0L;
 
 class serialReadThread (threading.Thread):
     def __init__(self):
@@ -304,6 +304,7 @@ class timeDataThread (threading.Thread):
         global timeElapsed
         global timeElapsedPrev
         global startBtnClicked
+        global startTime
         timeBytes = [None, None, None, None]
         while (startBtnClicked):
             while(not len(time_data) >= 4):
@@ -320,6 +321,8 @@ class timeDataThread (threading.Thread):
 
             # We'll add all our values to this string until we're ready to exit the loop, at which point it will be written to a file
             time_write.append(str(timeElapsed))
+            
+            #print(str(timeElapsed))
 
             ## This difference calucalted in the if statement is the amount of time in microseconds since the last value
             ## we read in and wrote to a file. If this value is significantly greater than 100, we know we have missed some
@@ -370,13 +373,14 @@ class dataWriteThread (threading.Thread):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
+        global packetsRecieved
 
         while (startBtnClicked):
             while(not time_write or not pmt_write):
                 pass
             localTimeElapsed = time_write.popleft()
             pmtNumDataRounded = pmt_write.popleft()
-
+            
             stringToWrite = localTimeElapsed + "," + pmtNumDataRounded + '\n'
             f.write(stringToWrite)
             packetsRecieved += 1
@@ -428,15 +432,16 @@ timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(0)
 
+## Start the Qt event loop
+app.exec_()
+
 #check how many packets were missed
 endTime = timeElapsedPrev
 packetsSent = (endTime - startTime) / usecBetweenPackets
 packetsMissed = packetsSent - packetsRecieved
 percentageMissed = (float(packetsMissed) / float(packetsSent)) * 100.0
+print("start: " + str(startTime) + "  endTime: " + str(endTime) + "  received: " + str(packetsRecieved) + '\n')
 print("You missed " + str(packetsMissed) + " out of " + str(packetsSent) + " packets sent. (" + str(percentageMissed) + "%)")
-
-## Start the Qt event loop
-app.exec_()
 
 # Prompts the user to add a description for the test data and saves it in RecordedData\TestNotes.txt
 ## Tkinter is used to create this window

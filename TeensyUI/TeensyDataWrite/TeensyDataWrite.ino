@@ -18,7 +18,7 @@ void SampleVoltage() {
   time = micros(); //Time in microseconds since start of program
   //We will write our values as an array of bytes for easy
   //transmission and retrieval
-  unsigned char serialBytes[8];
+  unsigned char serialBytes[6];
   serialBytes[0] = (time >> 24) & 0xff;
   serialBytes[1] = (time >> 16) & 0xff;
   serialBytes[2] = (time >> 8) & 0xff;
@@ -39,7 +39,7 @@ void SampleVoltage() {
 }
 
 void timer_setup() {
-  timer0.begin(SampleVoltage, 125);  //SampleVoltage will run every 100 us
+  timer0.begin(SampleVoltage, 100);  //SampleVoltage will run every 100 us
 }
   
 void timer_stop() {
