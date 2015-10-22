@@ -18,6 +18,7 @@ import threading                    #For multithreading
 import Queue
 from collections import deque
 import pprint                       #For pretty debug printing
+import binascii
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
@@ -233,7 +234,6 @@ teensySerialData = serial.Serial("COM4", 115200)
 usecBetweenPackets = 100
 packetsRecieved = 0L
 
-inputBytes = []
 recieved_data = deque()
 time_data = deque()
 pmt_data = deque()
@@ -245,6 +245,27 @@ graph_sema = threading.Semaphore()
 startTime = 0L;
 endTime = 0L;
 
+def serialThreadRun(times):
+    ## Set global precedence to previously defined values
+    global firstRun
+    global startBtnClicked
+    global recieved_data
+    inputBytes = []
+    while (times > 0):
+        inputBytes = teensySerialData.read(size = 6)
+        if (firstRun == True):
+            ## Only run once to ensure buffer is completely flushed
+            firstRun = False
+            teensySerialData.flushInput()
+            continue
+        #Bytes read in and stored in a char array of size six
+        recieved_data.append(inputBytes)
+        times -= 1
+
+# import cProfile
+# import re
+# cProfile.run('serialThreadRun("100")')
+        
 class serialReadThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -253,6 +274,7 @@ class serialReadThread (threading.Thread):
         global firstRun
         global startBtnClicked
         global recieved_data
+        inputBytes = []
         while (startBtnClicked):
             inputBytes = teensySerialData.read(size = 6)
             if (firstRun == True):
@@ -273,26 +295,30 @@ class dataConverterThread (threading.Thread):
         global recieved_data
         global time_data
         global pmt_data
-        while (startBtnClicked):
+        while (startBtnClicked or recieved_data):
             #Get data to work with from queue
             while(not recieved_data):
                 pass
+            
+            #print(str(len(recieved_data)))
             working_data = recieved_data.popleft()
-
+            #out = ""
+            #for d in working_data:
+            #    out += str(format(ord(d),'008b')) + " "
+            #print(out)
             #The ord function converts a char to its corresponding ASCII integer, which we can then convert to a float
-            timeByte3 = float(ord(working_data[0]))
-            timeByte2 = float(ord(working_data[1]))
-            timeByte1 = float(ord(working_data[2]))
-            timeByte0 = float(ord(working_data[3]))
-            pmtByte1 = float(ord(working_data[4]))
-            pmtByte0 = float(ord(working_data[5]))
+            timeByte3 = (ord(working_data[0]))
+            timeByte2 = (ord(working_data[1]))
+            timeByte1 = (ord(working_data[2]))
+            timeByte0 = (ord(working_data[3]))
+            pmtByte1 = (ord(working_data[4]))
+            pmtByte0 = (ord(working_data[5]))
 
-            #recieved_data.task_done()
-            #time_data.append([timeByte0, timeByte1, timeByte2, timeByte3])
-            time_data.append(timeByte0)
-            time_data.append(timeByte1)
-            time_data.append(timeByte2)
-            time_data.append(timeByte3)
+            time_data.append([timeByte0, timeByte1, timeByte2, timeByte3])
+            #time_data.append(timeByte0)
+            #time_data.append(timeByte1)
+            #time_data.append(timeByte2)
+            #time_data.append(timeByte3)
             #pmt_data.append([pmtByte0, pmtByte1])
             pmt_data.append(pmtByte0)
             pmt_data.append(pmtByte1)
@@ -305,14 +331,15 @@ class timeDataThread (threading.Thread):
         global timeElapsedPrev
         global startBtnClicked
         global startTime
-        timeBytes = [None, None, None, None]
+        #timeBytes = [None, None, None, None]
         while (startBtnClicked):
-            while(not len(time_data) >= 4):
+            while(not len(time_data) > 0):
                 pass
-            timeBytes[0] = time_data.popleft()
-            timeBytes[1] = time_data.popleft()
-            timeBytes[2] = time_data.popleft()
-            timeBytes[3] = time_data.popleft()
+            timeBytes = time_data.popleft()
+            #timeBytes[0] = time_data.popleft()
+            #timeBytes[1] = time_data.popleft()
+            #timeBytes[2] = time_data.popleft()
+            #timeBytes[3] = time_data.popleft()
             timeElapsedPrev = timeElapsed
             timeElapsed = timeBytes[3]*256*256*256 + timeBytes[2]*256*256 + timeBytes[1]*256 + timeBytes[0] #There are 8 bits in a byte, 2^8 = 256
             if (timeElapsedPrev == 0):
