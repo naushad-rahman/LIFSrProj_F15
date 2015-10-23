@@ -1,5 +1,10 @@
 from Tkinter import *
 import os
+import tkMessageBox
+from os import listdir
+from os.path import isfile, join
+#import ImageTk, Image
+
 
 
 master = Tk()
@@ -33,6 +38,15 @@ def write_data():
 		f.close()
 		exit()
 
+def load_data():
+	print "Functional load"
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
+save_path = dir_path + '/MFD_Data/'
+onlyfiles = [ f for f in listdir(save_path) if isfile(join(save_path,f)) ]
+
+print onlyfiles
+
 Label(master, text="Device Number").grid(row=0)
 Label(master, text="Date (MM/DD/YY)").grid(row=1)
 Label(master, text="Template Status").grid(row=2)
@@ -48,6 +62,20 @@ Label(master, text="Time Cooling after Final Bonding").grid(row=11)
 Label(master, text="MFD Status (Success/Fail)").grid(row=12)
 Label(master, text="Initials").grid(row=13)
 Button(master, text = "SUBMIT DATA", command = write_data).grid(row=14)
+lb1 = Listbox(master)
+
+x = 1
+
+for listitem in onlyfiles:
+	lb1.insert(x,listitem)
+	x+=1
+
+
+lb1.grid(row=15)
+#img = ImageTk.PhotoImage(Image.open('uFluidicsLogo.jpeg'))
+#panel = tk.Label(master, image = img)
+#panel.pack(side = "bottom", fill = "both", expand = "yes")
+
 
 e1 = Entry(master)
 e2 = Entry(master)
@@ -78,5 +106,13 @@ e11.grid(row=10, column=1)
 e12.grid(row=11, column=1)
 e13.grid(row=12, column=1)
 e14.grid(row=13, column=1)
+
+
+print onlyfiles # print files in the directory
+
+
+
+
+
 
 mainloop( )
