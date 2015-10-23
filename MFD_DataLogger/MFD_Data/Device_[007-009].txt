@@ -12,3 +12,8 @@ Time in Oven Bonding: 				31
 Time Cooling after Final Bonding: 		60+
 MFD Status: 					Appear Successful
 Initials: 					bw
+
+
+
+Notes:
+These devices have had almost no problems throughout the process. They appear to have very distinct channels with a pretty thorough bonding. The major changes here were that we applied a little less pressure with the clamps, and left the slides in the 110 deg. C oven for ~31 minutes. This seems to work much better and results in fewer cracked and broken glass slides. In addition, allowing more cooling time and gradually loosening the clamps throughout the cooling process seems to help the the template and imprinted slide separate with little to no template wear.
