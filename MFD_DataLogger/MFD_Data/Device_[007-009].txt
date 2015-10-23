@@ -1,0 +1,14 @@
+Device Number: 					007-009
+Date: 						10/23/15
+Template Status (Cleanliness/Usage): 		Cleaned - New Templates
+Reservoir Glass Color/Type: 			Blue
+Time Imprinting in Oven: 			17
+Time Flattening in Oven: 			17
+Temperature of Oven1 (Hotter Oven): 		138
+Temperature of Oven2 (Colder Oven): 		110
+Time Cooling - Flattening: 			55
+Time Cooling - Imprinting: 			55
+Time in Oven Bonding: 				31
+Time Cooling after Final Bonding: 		60+
+MFD Status: 					Appear Successful
+Initials: 					bw
