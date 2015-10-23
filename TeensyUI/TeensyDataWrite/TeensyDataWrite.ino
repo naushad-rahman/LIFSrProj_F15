@@ -1,14 +1,14 @@
 /*
 When we run this program we will read in voltage values
 from pins A0(PMT) and A1(Peak Detector) from a Teensy and write
-these values, along with the time in microseconds from the start
+these values, along with the time in microseconds from the start 
 of the program, to the serial port for retrieval by our python
 program, Teensy Data.
 */
 
 int pmt;
 int pd;
-int time;
+unsigned long time;
 IntervalTimer timer0;
 
 //Function we will run in response to a 100 us timer
@@ -34,14 +34,14 @@ void SampleVoltage() {
 //  serialBytes[5] = 0;
 //  serialBytes[6] = 0;
 //  serialBytes[7] = 0;
-
+  
   Serial.write(serialBytes,6);
 }
 
 void timer_setup() {
   timer0.begin(SampleVoltage, 100);  //SampleVoltage will run every 100 us
 }
-
+  
 void timer_stop() {
   timer0.end();
 }

@@ -16,7 +16,9 @@ from Tkinter import *               #For the notes prompt
 import json                         #For saving tags
 import threading                    #For multithreading
 import Queue
+from collections import deque
 import pprint                       #For pretty debug printing
+import binascii
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
@@ -207,8 +209,8 @@ graphCount = 0
 
 ## Time values in microseconds read from the teensy are stored in these variables
 ## Before timeElapsed is updated, we store its old value in timeElapsedPrev
-timeElapsed = 0
-timeElapsedPrev = 0
+timeElapsed = 0L
+timeElapsedPrev = 0L
 
 ## Determines if we are running through the update loop for the first time
 firstRun = True
@@ -229,15 +231,41 @@ f.write("Timestamp,PMT\n")
 ## window containing the TeensyDataWrite.ino code
 
 teensySerialData = serial.Serial("COM4", 115200)
-inputBytes = []
-recieved_data = Queue.Queue()
-time_data = Queue.Queue()
-pmt_data = Queue.Queue()
-time_write = Queue.Queue()
-pmt_write = Queue.Queue()
-pmt_graph = Queue.Queue()
+usecBetweenPackets = 100
+packetsRecieved = 0L
+
+recieved_data = deque()
+time_data = deque()
+pmt_data = deque()
+time_write = deque()
+pmt_write = deque()
+pmt_graph = deque()
 graph_sema = threading.Semaphore()
 
+startTime = 0L;
+endTime = 0L;
+
+def serialThreadRun(times):
+    ## Set global precedence to previously defined values
+    global firstRun
+    global startBtnClicked
+    global recieved_data
+    inputBytes = []
+    while (times > 0):
+        inputBytes = teensySerialData.read(size = 6)
+        if (firstRun == True):
+            ## Only run once to ensure buffer is completely flushed
+            firstRun = False
+            teensySerialData.flushInput()
+            continue
+        #Bytes read in and stored in a char array of size six
+        recieved_data.append(inputBytes)
+        times -= 1
+
+# import cProfile
+# import re
+# cProfile.run('serialThreadRun("100")')
+        
 class serialReadThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -245,6 +273,8 @@ class serialReadThread (threading.Thread):
         ## Set global precedence to previously defined values
         global firstRun
         global startBtnClicked
+        global recieved_data
+        inputBytes = []
         while (startBtnClicked):
             inputBytes = teensySerialData.read(size = 6)
             if (firstRun == True):
@@ -252,8 +282,8 @@ class serialReadThread (threading.Thread):
                 firstRun = False
                 teensySerialData.flushInput()
                 continue
-            #Bytes read in and stored in a char array of size eight
-            recieved_data.put(inputBytes)
+            #Bytes read in and stored in a char array of size six
+            recieved_data.append(inputBytes)
 
 #this is the weakest link and needs to be sped up.
 class dataConverterThread (threading.Thread):
@@ -261,23 +291,37 @@ class dataConverterThread (threading.Thread):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
-
-        while (startBtnClicked):
+        global convdone
+        global recieved_data
+        global time_data
+        global pmt_data
+        while (startBtnClicked or recieved_data):
             #Get data to work with from queue
-            working_data = recieved_data.get()
-
+            while(not recieved_data):
+                pass
+            
+            #print(str(len(recieved_data)))
+            working_data = recieved_data.popleft()
+            #out = ""
+            #for d in working_data:
+            #    out += str(format(ord(d),'008b')) + " "
+            #print(out)
             #The ord function converts a char to its corresponding ASCII integer, which we can then convert to a float
-            timeByte3 = float(ord(working_data[0]))
-            timeByte2 = float(ord(working_data[1]))
-            timeByte1 = float(ord(working_data[2]))
-            timeByte0 = float(ord(working_data[3]))
-            pmtByte1 = float(ord(working_data[4]))
-            pmtByte0 = float(ord(working_data[5]))
+            timeByte3 = (ord(working_data[0]))
+            timeByte2 = (ord(working_data[1]))
+            timeByte1 = (ord(working_data[2]))
+            timeByte0 = (ord(working_data[3]))
+            pmtByte1 = (ord(working_data[4]))
+            pmtByte0 = (ord(working_data[5]))
 
-            recieved_data.task_done()
-            time_data.put([timeByte0, timeByte1, timeByte2, timeByte3])
-            pmt_data.put([pmtByte0, pmtByte1])
-            #print("current size of queue: " + str(recieved_data.qsize()))
+            time_data.append([timeByte0, timeByte1, timeByte2, timeByte3])
+            #time_data.append(timeByte0)
+            #time_data.append(timeByte1)
+            #time_data.append(timeByte2)
+            #time_data.append(timeByte3)
+            #pmt_data.append([pmtByte0, pmtByte1])
+            pmt_data.append(pmtByte0)
+            pmt_data.append(pmtByte1)
 
 class timeDataThread (threading.Thread):
     def __init__(self):
@@ -286,17 +330,26 @@ class timeDataThread (threading.Thread):
         global timeElapsed
         global timeElapsedPrev
         global startBtnClicked
-
+        global startTime
+        #timeBytes = [None, None, None, None]
         while (startBtnClicked):
-            timeBytes = time_data.get()
+            while(not len(time_data) > 0):
+                pass
+            timeBytes = time_data.popleft()
+            #timeBytes[0] = time_data.popleft()
+            #timeBytes[1] = time_data.popleft()
+            #timeBytes[2] = time_data.popleft()
+            #timeBytes[3] = time_data.popleft()
             timeElapsedPrev = timeElapsed
             timeElapsed = timeBytes[3]*256*256*256 + timeBytes[2]*256*256 + timeBytes[1]*256 + timeBytes[0] #There are 8 bits in a byte, 2^8 = 256
-            time_data.task_done()
             if (timeElapsedPrev == 0):
+                startTime = timeElapsed
                 timeElapsedPrev = timeElapsed   #So we won't get a warning on the first packet received.
 
             # We'll add all our values to this string until we're ready to exit the loop, at which point it will be written to a file
-            time_write.put(str(timeElapsed))
+            time_write.append(str(timeElapsed))
+            
+            #print(str(timeElapsed))
 
             ## This difference calucalted in the if statement is the amount of time in microseconds since the last value
             ## we read in and wrote to a file. If this value is significantly greater than 100, we know we have missed some
@@ -305,23 +358,25 @@ class timeDataThread (threading.Thread):
             ## This is useful to determine if your code is running too slow
             #if (timeElapsed - timeElapsedPrev > 8000):
             #    print(str((timeElapsed-timeElapsedPrev)/7400))
-            if (timeElapsed - timeElapsedPrev > 150):
-                print("missed time: " + str((timeElapsed-timeElapsedPrev)/100))
+            if (timeElapsed - timeElapsedPrev > (usecBetweenPackets*1.5)):
+                print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
 
 class pmtDataThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
-
+        pmtBytes = [None, None, None, None]
         while (startBtnClicked):
-            pmtBytes = pmt_data.get()
+            while(not len(pmt_data) >= 2):
+                pass
+            pmtBytes[0] = pmt_data.popleft()
+            pmtBytes[1] = pmt_data.popleft()
             numData = pmtBytes[1]*256 + pmtBytes[0]
             numData = numData*3.3/1024
             numDataRounded = numData - numData%.001 #Round voltage value to 3 decimal points
-            pmt_data.task_done()
-            pmt_graph.put(numDataRounded)
-            pmt_write.put(str(numDataRounded))
+            pmt_graph.append(numDataRounded)
+            pmt_write.append(str(numDataRounded))
 
 class pmtGraphThread (threading.Thread):
     def __init__(self):
@@ -332,31 +387,33 @@ class pmtGraphThread (threading.Thread):
         global startBtnClicked
 
         while (startBtnClicked):
-            numDataRounded = pmt_graph.get()
+            while(not pmt_graph):
+                pass
+            numDataRounded = pmt_graph.popleft()
             graph_sema.acquire()
             pmtData.append(numDataRounded)
             xRightIndex = xRightIndex + 1
             graph_sema.release()
-            pmt_graph.task_done()
 
 class dataWriteThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
+        global packetsRecieved
 
         while (startBtnClicked):
-            localTimeElapsed = time_write.get()
-            pmtNumDataRounded = pmt_write.get()
-
+            while(not time_write or not pmt_write):
+                pass
+            localTimeElapsed = time_write.popleft()
+            pmtNumDataRounded = pmt_write.popleft()
+            
             stringToWrite = localTimeElapsed + "," + pmtNumDataRounded + '\n'
             f.write(stringToWrite)
-
-            time_write.task_done()
-            pmt_write.task_done()
+            packetsRecieved += 1
 
 #class graphingThread (threading.Thread):   #Use this instead of "def update():" to turn it back into a thread.
-#    def __init__(self):
+#    def __init__(self):                    #But it appears that this can't be a seperate thread because of Qt stuff
 #        threading.Thread.__init__(self)
 #    def run(self):
 def update():
@@ -405,26 +462,96 @@ timer.start(0)
 ## Start the Qt event loop
 app.exec_()
 
+#check how many packets were missed
+endTime = timeElapsedPrev
+packetsSent = (endTime - startTime) / usecBetweenPackets
+packetsMissed = packetsSent - packetsRecieved
+percentageMissed = (float(packetsMissed) / float(packetsSent)) * 100.0
+print("start: " + str(startTime) + "  endTime: " + str(endTime) + "  received: " + str(packetsRecieved) + '\n')
+print("You missed " + str(packetsMissed) + " out of " + str(packetsSent) + " packets sent. (" + str(percentageMissed) + "%)")
+
 # Prompts the user to add a description for the test data and saves it in RecordedData\TestNotes.txt
 ## Tkinter is used to create this window
 testNotes = Tk()
 
 ## The label telling the user what to do
-l = Label(testNotes, text = "Describe your experiment here.")
+l = Label(testNotes, text = "Describe your experiment and results here.")
 l.pack(padx = 10, pady = 5, anchor = W)
 
 ## The textbox where the notes are written
-textBox = Text(testNotes)
-textBox.pack(padx = 10, pady = 5)
+textBox = Text(testNotes, height = 10, width = 78)
+textBox.pack(padx = 10, pady = 5, anchor = W)
 textBox.focus_set()
 
 ## textbox for microfluidic device number
-deviceNumFrame = Frame(testNotes)
-deviceNumFrame.pack(pady = 5)
+inputBoxFrame = Frame(testNotes)
+inputBoxFrame.pack(padx = 10, anchor = W)
+inputBoxLeftFrame = Frame(testNotes)
+inputBoxLeftFrame.pack(in_ = inputBoxFrame, padx = 10, side = LEFT, anchor = W)
+inputBoxRightFrame = Frame(testNotes)
+inputBoxRightFrame.pack(in_ = inputBoxFrame, padx = 10, side = LEFT, anchor = W)
+inputBoxFrameL0 = Frame(testNotes, pady = 2)
+inputBoxFrameL0.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
+inputBoxFrameR0 = Frame(testNotes, pady = 2)
+inputBoxFrameR0.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
+inputBoxFrameL1 = Frame(testNotes, pady = 2)
+inputBoxFrameL1.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
+inputBoxFrameR1 = Frame(testNotes, pady = 2)
+inputBoxFrameR1.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
+inputBoxFrameL2 = Frame(testNotes, pady = 2)
+inputBoxFrameL2.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
+inputBoxFrameR2 = Frame(testNotes, pady = 2)
+inputBoxFrameR2.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
+inputBoxFrameL3 = Frame(testNotes, pady = 2)
+inputBoxFrameL3.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
+inputBoxFrameR3 = Frame(testNotes, pady = 2)
+inputBoxFrameR3.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
+inputBoxFrameL4 = Frame(testNotes, pady = 2)
+inputBoxFrameL4.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
+inputBoxFrameR4 = Frame(testNotes, pady = 2)
+inputBoxFrameR4.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
+
 deviceNumLabel = Label(testNotes, text = "Microfluidic device number: ")
 deviceNumEntry = Entry(testNotes)
-deviceNumLabel.pack(in_ = deviceNumFrame, side = LEFT)
-deviceNumEntry.pack(in_ = deviceNumFrame, side = LEFT)
+deviceNumUsedLabel = Label(testNotes, text = "Times device has been used: ")
+deviceNumUsedEntry = Entry(testNotes)
+laserPosLabel = Label(testNotes, text = "Laser position: ")
+laserPosEntry = Entry(testNotes)
+analogGainLabel = Label(testNotes, text = "Analog gain: ")
+analogGainEntry = Entry(testNotes)
+laserVoltLabel = Label(testNotes, text = "Laser voltage: ")
+laserVoltEntry = Entry(testNotes)
+pmtVoltLabel = Label(testNotes, text = "PMT control voltage: ")
+pmtVoltEntry = Entry(testNotes)
+hvSettingsLabel = Label(testNotes, text = "HV settings: ")
+hvSettingsEntry = Entry(testNotes)
+buffSolLabel = Label(testNotes, text = "Buffer solution used: ")
+buffSolEntry = Entry(testNotes)
+fluorophoreLabel = Label(testNotes, text = "Fluorophore used: ")
+fluorophoreEntry = Entry(testNotes)
+fluorophoreConLabel = Label(testNotes, text = "Fluorophore concentration: ")
+fluorophoreConEntry = Entry(testNotes)
+
+deviceNumLabel.pack(in_ = inputBoxFrameL0, side = LEFT)
+deviceNumEntry.pack(in_ = inputBoxFrameL0, side = LEFT)
+deviceNumUsedLabel.pack(in_ = inputBoxFrameR0, side = LEFT)
+deviceNumUsedEntry.pack(in_ = inputBoxFrameR0, side = LEFT)
+laserPosLabel.pack(in_ = inputBoxFrameL1, side = LEFT)
+laserPosEntry.pack(in_ = inputBoxFrameL1, side = LEFT)
+analogGainLabel.pack(in_ = inputBoxFrameR1, side = LEFT)
+analogGainEntry.pack(in_ = inputBoxFrameR1, side = LEFT)
+laserVoltLabel.pack(in_ = inputBoxFrameL2, side = LEFT)
+laserVoltEntry.pack(in_ = inputBoxFrameL2, side = LEFT)
+pmtVoltLabel.pack(in_ = inputBoxFrameR2, side = LEFT)
+pmtVoltEntry.pack(in_ = inputBoxFrameR2, side = LEFT)
+hvSettingsLabel.pack(in_ = inputBoxFrameL3, side = LEFT)
+hvSettingsEntry.pack(in_ = inputBoxFrameL3, side = LEFT)
+buffSolLabel.pack(in_ = inputBoxFrameR3, side = LEFT)
+buffSolEntry.pack(in_ = inputBoxFrameR3, side = LEFT)
+fluorophoreLabel.pack(in_ = inputBoxFrameL4, side = LEFT)
+fluorophoreEntry.pack(in_ = inputBoxFrameL4, side = LEFT)
+fluorophoreConLabel.pack(in_ = inputBoxFrameR4, side = LEFT)
+fluorophoreConEntry.pack(in_ = inputBoxFrameR4, side = LEFT)
 
 ## Checkboxes are used to add some tags to the data
 checks = Frame(testNotes)
@@ -457,7 +584,10 @@ def submit():
     if text == "":
         text = "[No notes were included for this test.]"
     ## create new dictionary entry
-    checkDict[fileName] = {"deviceNum": deviceNum, "success": success.get(), "broken": broken.get(), "wrong": wrong.get(), "text": text}
+    checkDict[fileName] = {"deviceNum": deviceNum, "deviceUsed": deviceNumUsedEntry.get(), "laserPos": laserPosEntry.get(), "analogGain": analogGainEntry.get(),
+        "laserVolt": laserVoltEntry.get(), "pmtVolt": pmtVoltEntry.get(), "hvSettings": hvSettingsEntry.get(), "buffSol": buffSolEntry.get(),
+        "fluorophore": fluorophoreEntry.get(), "fluorophoreCon": fluorophoreConEntry.get(), "success": success.get(), "broken": broken.get(),
+        "wrong": wrong.get(), "text": text}
     ## add other data to the front of the text for printing
     if deviceNum != "":     # If the line above was uncommented, change this to 'if deviceNum != "000":'
         text = "[Microfluidic device #" + deviceNum + "]\n" + text
