@@ -1,9 +1,0 @@
-Removed Pin From Net: NetName=NetOpAmp1_3 Pin=R6-1
-Change Component Designator: OldDesignator=OpAmp NewDesignator=OpAmp1
-Added Component: Designator=R7(SMT 0805 (2012))
-Added Pin To Net: NetName=NetOpAmp1_3 Pin=R7-1
-Added Pin To Net: NetName=NetR6_1 Pin=R6-1
-Added Pin To Net: NetName=NetR6_1 Pin=R7-2
-Added Net: Name=NetR6_1
-Added Member To Class: ClassName=driver Member=Component R6 10K pot
-Added Member To Class: ClassName=driver Member=Component R7 Resistor 500 0804
