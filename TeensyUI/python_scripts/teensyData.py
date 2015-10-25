@@ -19,6 +19,7 @@ import Queue
 from collections import deque
 import pprint                       #For pretty debug printing
 import binascii
+import struct
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
@@ -43,9 +44,9 @@ def startButtonClicked():
         serial_read_thread = serialReadThread()
         serial_read_thread.daemon = True
         serial_read_thread.start()
-        data_converter_thread = dataConverterThread()
-        data_converter_thread.daemon = True
-        data_converter_thread.start()
+        # data_converter_thread = dataConverterThread()
+        # data_converter_thread.daemon = True
+        # data_converter_thread.start()
         time_data_thread = timeDataThread()
         time_data_thread.daemon = True
         time_data_thread.start()
@@ -231,7 +232,10 @@ f.write("Timestamp,PMT\n")
 ## window containing the TeensyDataWrite.ino code
 
 teensySerialData = serial.Serial("COM4", 115200)
-usecBetweenPackets = 100
+
+#change this to match the value in the Teensy's "timer0.begin(SampleVoltage, 110);" line
+usecBetweenPackets = 110.0
+
 packetsRecieved = 0L
 
 recieved_data = deque()
@@ -245,6 +249,7 @@ graph_sema = threading.Semaphore()
 startTime = 0L;
 endTime = 0L;
 
+#ignore this. It's just for testing
 def serialThreadRun(times):
     ## Set global precedence to previously defined values
     global firstRun
@@ -273,55 +278,29 @@ class serialReadThread (threading.Thread):
         ## Set global precedence to previously defined values
         global firstRun
         global startBtnClicked
-        global recieved_data
-        inputBytes = []
+        global time_data
+        global pmt_data
+        #inputBytes = []
         while (startBtnClicked):
-            inputBytes = teensySerialData.read(size = 6)
+            #Reads the values from the serial port into time_value, adc_value, and trash.
+            #In the ">LHH" argument, the ">" tells it the data is big-endian, the "L" tells it
+            #that time_value is an unsigned long, and the "H"s tell it that adc_value and trash
+            #are unsigned shorts. Trash is only there because things break if 6 bytes are sent at
+            #a time. It is then ignored.
+            time_value, adc_value, trash = struct.unpack(">LHH", teensySerialData.read(8))
             if (firstRun == True):
                 ## Only run once to ensure buffer is completely flushed
                 firstRun = False
                 teensySerialData.flushInput()
                 continue
             #Bytes read in and stored in a char array of size six
-            recieved_data.append(inputBytes)
-
-#this is the weakest link and needs to be sped up.
-class dataConverterThread (threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-    def run(self):
-        global startBtnClicked
-        global convdone
-        global recieved_data
-        global time_data
-        global pmt_data
-        while (startBtnClicked or recieved_data):
-            #Get data to work with from queue
-            while(not recieved_data):
-                pass
-            
-            #print(str(len(recieved_data)))
-            working_data = recieved_data.popleft()
-            #out = ""
-            #for d in working_data:
-            #    out += str(format(ord(d),'008b')) + " "
-            #print(out)
-            #The ord function converts a char to its corresponding ASCII integer, which we can then convert to a float
-            timeByte3 = (ord(working_data[0]))
-            timeByte2 = (ord(working_data[1]))
-            timeByte1 = (ord(working_data[2]))
-            timeByte0 = (ord(working_data[3]))
-            pmtByte1 = (ord(working_data[4]))
-            pmtByte0 = (ord(working_data[5]))
-
-            time_data.append([timeByte0, timeByte1, timeByte2, timeByte3])
-            #time_data.append(timeByte0)
-            #time_data.append(timeByte1)
-            #time_data.append(timeByte2)
-            #time_data.append(timeByte3)
-            #pmt_data.append([pmtByte0, pmtByte1])
-            pmt_data.append(pmtByte0)
-            pmt_data.append(pmtByte1)
+            time_data.append(time_value)
+            pmt_data.append(adc_value)
+            ##print out the recieved data in hex format for testing
+            # out = ""
+            # for d in struct.unpack(">LHH", teensySerialData.read(8)):
+                # out += ('%08X' % d) + " "
+            # print(out)
 
 class timeDataThread (threading.Thread):
     def __init__(self):
@@ -331,20 +310,15 @@ class timeDataThread (threading.Thread):
         global timeElapsedPrev
         global startBtnClicked
         global startTime
-        #timeBytes = [None, None, None, None]
+        global time_data
         while (startBtnClicked):
             while(not len(time_data) > 0):
                 pass
-            timeBytes = time_data.popleft()
-            #timeBytes[0] = time_data.popleft()
-            #timeBytes[1] = time_data.popleft()
-            #timeBytes[2] = time_data.popleft()
-            #timeBytes[3] = time_data.popleft()
             timeElapsedPrev = timeElapsed
-            timeElapsed = timeBytes[3]*256*256*256 + timeBytes[2]*256*256 + timeBytes[1]*256 + timeBytes[0] #There are 8 bits in a byte, 2^8 = 256
+            timeElapsed = time_data.popleft()
             if (timeElapsedPrev == 0):
                 startTime = timeElapsed
-                timeElapsedPrev = timeElapsed   #So we won't get a warning on the first packet received.
+                timeElapsedPrev = timeElapsed
 
             # We'll add all our values to this string until we're ready to exit the loop, at which point it will be written to a file
             time_write.append(str(timeElapsed))
@@ -366,13 +340,11 @@ class pmtDataThread (threading.Thread):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
-        pmtBytes = [None, None, None, None]
+        global pmt_data
         while (startBtnClicked):
             while(not len(pmt_data) >= 2):
                 pass
-            pmtBytes[0] = pmt_data.popleft()
-            pmtBytes[1] = pmt_data.popleft()
-            numData = pmtBytes[1]*256 + pmtBytes[0]
+            numData = pmt_data.popleft()
             numData = numData*3.3/1024
             numDataRounded = numData - numData%.001 #Round voltage value to 3 decimal points
             pmt_graph.append(numDataRounded)
