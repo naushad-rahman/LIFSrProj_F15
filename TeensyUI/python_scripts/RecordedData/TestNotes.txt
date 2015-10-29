@@ -1,1 +1,10 @@
 This file holds the notes made about the experiment data files.
+
+***20151027_151346.csv***
+[Successful experiment]
+[Microfluidic device #N/A]
+Testing PMT and logging system. This data will be used to run simulation tests. It provides dark current and noise with signal as the XYZ runs between wells filled with fluorophore to show some florecing signal. The details are not included as they are not important at this time
+
+
+***20151029_115147.csv***
+test

@@ -15,10 +15,7 @@ import numpy as np
 from Tkinter import *               #For the notes prompt
 import json                         #For saving tags
 import threading                    #For multithreading
-import Queue
 from collections import deque
-import pprint                       #For pretty debug printing
-import binascii
 import struct
 
 ## Always start by initializing Qt (only once per application)
@@ -44,9 +41,6 @@ def startButtonClicked():
         serial_read_thread = serialReadThread()
         serial_read_thread.daemon = True
         serial_read_thread.start()
-        # data_converter_thread = dataConverterThread()
-        # data_converter_thread.daemon = True
-        # data_converter_thread.start()
         time_data_thread = timeDataThread()
         time_data_thread.daemon = True
         time_data_thread.start()
@@ -59,9 +53,6 @@ def startButtonClicked():
         data_write_thread = dataWriteThread()
         data_write_thread.daemon = True
         data_write_thread.start()
-        #graphing_thread = graphingThread()
-        #graphing_thread.daemon = True
-        #graphing_thread.start()
 
     elif (startBtnClicked == True):
         startBtnClicked = False
@@ -231,7 +222,7 @@ f.write("Timestamp,PMT\n")
 ## changes. It's the same number that appears on the bottom right corner of the
 ## window containing the TeensyDataWrite.ino code
 
-teensySerialData = serial.Serial("COM4", 115200)
+teensySerialData = serial.Serial("COM6", 115200, writeTimeout = 0)
 
 #change this to match the value in the Teensy's "timer0.begin(SampleVoltage, 110);" line
 usecBetweenPackets = 110.0
@@ -270,7 +261,8 @@ def serialThreadRun(times):
 # import cProfile
 # import re
 # cProfile.run('serialThreadRun("100")')
-        
+
+##This thread reads the serial data, unpacks it, and places it in the time_data and pmt_data deques
 class serialReadThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -302,6 +294,8 @@ class serialReadThread (threading.Thread):
                 # out += ('%08X' % d) + " "
             # print(out)
 
+##This thread takes the time data from the time_data deque, checks if time was missed, and adds the time data,
+##as a string, to the time_write deque.
 class timeDataThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -335,6 +329,7 @@ class timeDataThread (threading.Thread):
             if (timeElapsed - timeElapsedPrev > (usecBetweenPackets*1.5)):
                 print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
 
+##This thread takes the pmt data from the pmt_data deque, filters it (to be implemented) and adds the filtered data to pmt_graph.
 class pmtDataThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -345,11 +340,12 @@ class pmtDataThread (threading.Thread):
             while(not len(pmt_data) >= 2):
                 pass
             numData = pmt_data.popleft()
-            numData = numData*3.3/1024
-            numDataRounded = numData - numData%.001 #Round voltage value to 3 decimal points
+            #numData = numData*3.3/1024
+            numDataRounded = numData #- numData%.001 #Round voltage value to 3 decimal points
             pmt_graph.append(numDataRounded)
             pmt_write.append(str(numDataRounded))
 
+##This thread takes the data from pmt_graph, prepares it for graphing, and adds it to pmtData.
 class pmtGraphThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -367,6 +363,7 @@ class pmtGraphThread (threading.Thread):
             xRightIndex = xRightIndex + 1
             graph_sema.release()
 
+##This thread takes the data from time_write and pmt_write and wirtes them to the .csv output file.
 class dataWriteThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -384,10 +381,8 @@ class dataWriteThread (threading.Thread):
             f.write(stringToWrite)
             packetsRecieved += 1
 
-#class graphingThread (threading.Thread):   #Use this instead of "def update():" to turn it back into a thread.
-#    def __init__(self):                    #But it appears that this can't be a seperate thread because of Qt stuff
-#        threading.Thread.__init__(self)
-#    def run(self):
+##This function is called by the timer below. It graphs the data in pmtData. This is not a seperate thread
+##because QT only allows the graph to be modified in the same thread it was created in, which is the main thread.
 def update():
     global xLeftIndex
     global xRightIndex
@@ -438,9 +433,12 @@ app.exec_()
 endTime = timeElapsedPrev
 packetsSent = (endTime - startTime) / usecBetweenPackets
 packetsMissed = packetsSent - packetsRecieved
-percentageMissed = (float(packetsMissed) / float(packetsSent)) * 100.0
+if packetsMissed <= 0:
+    percentageMissed = 0.0
+else:
+    percentageMissed = (float(packetsMissed) / float(packetsSent)) * 100.0
 print("start: " + str(startTime) + "  endTime: " + str(endTime) + "  received: " + str(packetsRecieved) + '\n')
-print("You missed " + str(packetsMissed) + " out of " + str(packetsSent) + " packets sent. (" + str(percentageMissed) + "%)")
+print("You missed " + str(int(packetsMissed)) + " out of " + str(int(packetsSent)) + " packets sent. (" + str(percentageMissed) + "%)")
 
 # Prompts the user to add a description for the test data and saves it in RecordedData\TestNotes.txt
 ## Tkinter is used to create this window
