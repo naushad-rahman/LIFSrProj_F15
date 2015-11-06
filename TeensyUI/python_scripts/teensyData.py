@@ -222,11 +222,7 @@ f.write("Timestamp,PMT\n")
 ## changes. It's the same number that appears on the bottom right corner of the
 ## window containing the TeensyDataWrite.ino code
 
-<<<<<<< HEAD
-teensySerialData = serial.Serial("/dev/ttyUSB1", 115200)
-=======
-teensySerialData = serial.Serial("COM6", 115200, writeTimeout = 0)
->>>>>>> cb85cf1997ad3a3ea63ff1a4b864a8416393f6f5
+teensySerialData = serial.Serial("/dev/ttyUSB0", 115200, writeTimeout = 0)
 
 #change this to match the value in the Teensy's "timer0.begin(SampleVoltage, 110);" line
 usecBetweenPackets = 110.0
@@ -332,8 +328,8 @@ class timeDataThread (threading.Thread):
             ## This is useful to determine if your code is running too slow
             #if (timeElapsed - timeElapsedPrev > 8000):
             #    print(str((timeElapsed-timeElapsedPrev)/7400))
-            #if (timeElapsed - timeElapsedPrev > (usecBetweenPackets*1.5)):
-                #print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
+            if (timeElapsed - timeElapsedPrev > (usecBetweenPackets*1.5)):
+                print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
 
 pmt_filtered = []
 
@@ -349,14 +345,12 @@ class pmtDataThread (threading.Thread):
         while (startBtnClicked):
             while(not (len(pmt_data) >= 2)):
                 pass
-<<<<<<< HEAD
             udsp.signal_ary.append(pmt_data.popleft())
             if len(udsp.signal_ary) >= udsp.FILTBLK_SIZE:
                 graph_sema.acquire()
                 pmt_filtered.extend(udsp.filter_signal(udsp.signal_ary[0:udsp.FILTBLK_SIZE]))
                 del udsp.signal_ary[0:udsp.FILTBLK_SIZE]
                 graph_sema.release()
-                print ('DT: len(pmt_filtered) = ', len(pmt_filtered))
             	#xRightIndex += udsp.FILTBLK_SIZE
             #print idx, len(pmt_data)
             #for i in range(udsp.FILTBLK_SIZE-1):
@@ -377,7 +371,6 @@ class pmtDataThread (threading.Thread):
             pmt_write.append(str(numDataRounded))
 
 ##This thread takes the data from pmt_graph, prepares it for graphing, and adds it to pmtData.
->>>>>>> cb85cf1997ad3a3ea63ff1a4b864a8416393f6f5
 class pmtGraphThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -414,7 +407,6 @@ class dataWriteThread (threading.Thread):
             f.write(stringToWrite)
             packetsRecieved += 1
 
-<<<<<<< HEAD
 def update():
     global xLeftIndex
     global xRightIndex
@@ -436,7 +428,6 @@ def update():
 
         pmtCurve = pmtPlotWidget.plot()
         xRange = range(xLeftIndex, xRightIndex)
-        print('len(xRange) =', len(xRange), 'len(pmt_filtered) =', len(pmt_filtered))
         pmtCurve.setData(xRange, pmt_filtered)
 
         ## Now that we've plotting the values, we no longer need these arrays to store them
@@ -463,7 +454,6 @@ def update():
 =======
 ##This function is called by the timer below. It graphs the data in pmtData. This is not a seperate thread
 ##because QT only allows the graph to be modified in the same thread it was created in, which is the main thread.
->>>>>>> cb85cf1997ad3a3ea63ff1a4b864a8416393f6f5
 def update():
     global xLeftIndex
     global xRightIndex
