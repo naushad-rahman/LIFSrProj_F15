@@ -9,6 +9,7 @@ from scipy import signal #Includes convolve functions and others
 
 CODE_VERSION = "udsp Version 1.0"
 CODE_DATE = "November 3, 2015"
+CODE_TYPE = "DC Processing with Brickwall Threshold Filter Algorithm"
 
 # Constants for Filtereing and Thresholding
 SAMPLE_RATE = 9091 #samples/second
@@ -31,10 +32,20 @@ LP_FILTER = [0.000326, 0.000692, 0.001207, 0.001891, 0.002756, 0.003806,
 # Threshold Filter Definition
 THRESHOLD_FILTER = np.ones(THRESHOLD_WIDTH) / THRESHOLD_WIDTH
 
+# Processing Type Report
+PROCESSING_TYPE = \
+	'# ' + CODE_VERSION + '\n' + \
+	'# ' + CODE_DATE + '\n' + \
+	"# Designed for sample rate of: " + str(SAMPLE_RATE) + ' samp/s\n' + \
+	'# ' + CODE_TYPE + '\n' + \
+	"# Filter: " + LP_FILTER_TYPE + '\n' + \
+	"# Fluoresce minimum period: " + str(FLUORESCE_PERIOD_MIN) + ' s\n' + \
+	"# Threshold standard deviations: " + str(THRESHOLD_SD) + '\n' + \
+	"# Calibration period: " + str(CALIBRATION_PERIOD) + ' s\n'
+
 # Internal udsp Data Structures
 signal_ol = np.zeros(len(LP_FILTER)-1)
 threshold_ol = np.zeros(len(THRESHOLD_FILTER)-1)
-signal_ary = []#np.zeros(FILTBLK_SIZE) #TODO: remove this when teensyData.py is updated to teensyData2.py
 
 # Continous Filtering Using Overlap-add Method
 # s1: array of data to be filtered
@@ -68,37 +79,22 @@ def filter_signal(signal):
 	signal, signal_ol = continous_filter(signal, LP_FILTER, signal_ol)
 	return signal
 
+# Threshold Filter Continously by THRESHOLD_FILTER
+# singal: array of samples to run thresholding algorithm
+# returned signal: thresholded data
 def filter_threshold(signal):
 	global THRESHOLD_FILTER
 	global threshold_ol
 	signal, threshold_ol = continous_filter(signal, THRESHOLD_FILTER, threshold_ol)
 	return signal
 
+# Calibrate Threshold and Baseline Control
+# signal: signal to be threshold (can be of any length)
+# returned baseline: baseline of signal (to be subtracted from filtered signal)
+# returned threshold: threshold line to to cut off siganl
 def calibrate(signal):
 	global THRESHOLD_SD
 	baseline = np.mean(signal)
 	threshold = np.std(signal) * THRESHOLD_SD
 	return baseline, threshold
 
-# Threshold Siganl Section
-#def threshold(s1, th):
-
-'''
-class dataFilterThread (threading.Thread):
-	def __init__(self):
-		threading.Thread.__init__(self)
-	def run(self):
-		global udsp.lp_filter
-
-class dataThresholdThread (threading.Thread):
-	def __init__(self):
-		threading.Thread.__init__(self)
-	def run(self):
-		while (startBtnClicked):
-		
-		
-def calibrateButtonClicked():
-	global calibrateBtnClicked
-	global calibrateBtn
-
-'''
