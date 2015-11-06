@@ -15,9 +15,12 @@ import numpy as np
 from Tkinter import *               #For the notes prompt
 import json                         #For saving tags
 import threading                    #For multithreading
+import Queue
 from collections import deque
+import pprint                       #For pretty debug printing
+import binascii
 import struct
-import ufluidics_dsp as udsp
+import ufluidics_dsp as udsp        #For DSP processing
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
@@ -28,6 +31,7 @@ w.resize(1000,600)
 w.setWindowTitle('Voltage Plots')
 
 startBtnClicked = False
+calBtnClicked = False
 
 ## This function contains the behavior we want to see when the start button is clicked
 def startButtonClicked():
@@ -42,6 +46,9 @@ def startButtonClicked():
         serial_read_thread = serialReadThread()
         serial_read_thread.daemon = True
         serial_read_thread.start()
+        # data_converter_thread = dataConverterThread()
+        # data_converter_thread.daemon = True
+        # data_converter_thread.start()
         time_data_thread = timeDataThread()
         time_data_thread.daemon = True
         time_data_thread.start()
@@ -54,6 +61,9 @@ def startButtonClicked():
         data_write_thread = dataWriteThread()
         data_write_thread.daemon = True
         data_write_thread.start()
+        #graphing_thread = graphingThread()
+        #graphing_thread.daemon = True
+        #graphing_thread.start()
 
     elif (startBtnClicked == True):
         startBtnClicked = False
@@ -92,6 +102,10 @@ def separationButtonClicked():
     teensySerialData.write('2')
     print("Separation")
 
+def calibrateButtonClicked():
+    global calBtnClicked
+    calBtnClicked = True
+
 #Start Recording in Widget
 ## Create widgets to be placed inside
 
@@ -116,6 +130,9 @@ insBtn.setToolTip('Click to start insertion (#3)')
 sepBtn = QtGui.QPushButton("Separation")
 sepBtn.setToolTip('Click to start separation (#2)')
 
+calBtn = QtGui.QPushButton("Calibrate")
+calBtn.setToolTip('Clock to callibrate signal sample')
+
 ## Functions in parantheses are to be called when buttons are clicked
 startBtn.clicked.connect(startButtonClicked)
 quitBtn.clicked.connect(quitButtonClicked)
@@ -124,6 +141,7 @@ HVonBtn.clicked.connect(HVonButtonClicked)
 HVoffBtn.clicked.connect(HVoffButtonClicked)
 insBtn.clicked.connect(insertionButtonClicked)
 sepBtn.clicked.connect(separationButtonClicked)
+calBtn.clicked.connect(calibrateButtonClicked)
 
 ## xSamples is the maximum amount of samples we want graphed at a time
 xSamples = 30000
@@ -165,6 +183,14 @@ pmtPlotWidget.setYRange(0, 4096)
 pmtPlotWidget.setXRange(0, xSamples)
 pmtPlotWidget.setLabel('top', text = "PMT") #Title to appear at top of widget
 
+# Create and initialize plot widget for processed signals
+PROCPLOT_TITLE = "Filtered Processed PMT Data"
+procplot_widget = pg.PlotWidget()
+procplot_widget.setYRange(0, 1)
+procplot_widget.setXRange(0, xSamples)
+procplot_widget.setLabel('top', text=PROCPLOT_TITLE)
+#procplot_curve = procplot_widget.plot() # Check with this line it may be done later in code
+
 ## Create a grid layout to manage the widgets size and position
 ## The grid layout allows us to place a widget in a given column and row
 layout = QtGui.QGridLayout()
@@ -173,13 +199,15 @@ w.setLayout(layout)
 ## Add widgets to the layout in their proper positions
 ## The first number in parantheses is the row, the second is the column
 layout.addWidget(quitBtn, 0, 0)
-layout.addWidget(startBtn, 2, 0)
+layout.addWidget(startBtn, 3, 0)
 layout.addWidget(HVonBtn, 0, 2)
-layout.addWidget(insBtn, 2, 2)
-layout.addWidget(sepBtn, 3, 2)
-layout.addWidget(HVoffBtn, 4, 2)
+layout.addWidget(insBtn, 3, 2)
+layout.addWidget(sepBtn, 4, 2)
+layout.addWidget(HVoffBtn, 5, 2)
+layout.addWidget(calBtn, 6, 2)
 
 layout.addWidget(pmtPlotWidget, 1, 1)
+layout.addWidget(procplot_widget, 2, 1)
 
 ## Display the widget as a new window
 w.show()
@@ -222,7 +250,7 @@ f.write("Timestamp,PMT\n")
 ## changes. It's the same number that appears on the bottom right corner of the
 ## window containing the TeensyDataWrite.ino code
 
-teensySerialData = serial.Serial("/dev/ttyUSB0", 115200, writeTimeout = 0)
+teensySerialData = serial.Serial("/dev/ttyUSB0", 115200)
 
 #change this to match the value in the Teensy's "timer0.begin(SampleVoltage, 110);" line
 usecBetweenPackets = 110.0
@@ -262,8 +290,7 @@ def serialThreadRun(times):
 # import cProfile
 # import re
 # cProfile.run('serialThreadRun("100")')
-
-##This thread reads the serial data, unpacks it, and places it in the time_data and pmt_data deques
+        
 class serialReadThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -296,8 +323,6 @@ class serialReadThread (threading.Thread):
                 # out += ('%08X' % d) + " "
             # print(out)
 
-##This thread takes the time data from the time_data deque, checks if time was missed, and adds the time data,
-##as a string, to the time_write deque.
 class timeDataThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -308,7 +333,7 @@ class timeDataThread (threading.Thread):
         global startTime
         global time_data
         while (startBtnClicked):
-            while(not len(time_data) > 0):
+            while(not time_data):
                 pass
             timeElapsedPrev = timeElapsed
             timeElapsed = time_data.popleft()
@@ -331,46 +356,55 @@ class timeDataThread (threading.Thread):
             if (timeElapsed - timeElapsedPrev > (usecBetweenPackets*1.5)):
                 print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
 
+filter_block = []
 pmt_filtered = []
+pmt_thresholded = []
+pmt_calibrate = []
+pmt_baseline = 0.0
+pmt_threshold = 100.0 #default threshold value
+#pmt_high = False
 
-##This thread takes the pmt data from the pmt_data deque, filters it (to be implemented) and adds the filtered data to pmt_graph.
 class pmtDataThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
+        global calBtnClicked
         global pmt_data
         global xRightIndex
+        global filter_block
         global pmt_filtered
+        global pmt_calibrate
+        global pmt_baseline
+        global pmt_threshold
         while (startBtnClicked):
-            while(not (len(pmt_data) >= 2)):
+            while(not pmt_data):
                 pass
-            udsp.signal_ary.append(pmt_data.popleft())
-            if len(udsp.signal_ary) >= udsp.FILTBLK_SIZE:
+            filter_block.append(pmt_data.popleft())
+            if len(filter_block) >= udsp.FILTBLK_SIZE:
                 graph_sema.acquire()
-                pmt_filtered.extend(udsp.filter_signal(udsp.signal_ary[0:udsp.FILTBLK_SIZE]))
-                del udsp.signal_ary[0:udsp.FILTBLK_SIZE]
+                filter_block = udsp.filter_signal(filter_block)
+                if calBtnClicked:
+                    pmt_calibrate.extend(filter_block)
+                filter_block[:] = [x - pmt_baseline for x in filter_block]
+                pmt_filtered.extend(filter_block)
+                filter_block[:] = [x > pmt_threshold for x in filter_block]
+                filter_block = udsp.filter_threshold(filter_block)
+                pmt_thresholded.extend(filter_block)
+                filter_block = []
                 graph_sema.release()
-            	#xRightIndex += udsp.FILTBLK_SIZE
-            #print idx, len(pmt_data)
-            #for i in range(udsp.FILTBLK_SIZE-1):
-            #	udsp.signal_ary[i] = pmt_data.popleft()
+            if calBtnClicked and pmt_calibrate:
+                if len(pmt_calibrate) >= udsp.CALIBRATION_WIDTH:
+                    pmt_baseline, pmt_threshold = udsp.calibrate(pmt_calibrate)
+                    pmt_calibrate = []
+                    calBtnClicked = False
+                    print "PMT Baseline:", pmt_baseline, "PMT Threshold:", pmt_threshold
+                
             #numData = pmt_data.popleft()
             #numData = numData*3.3/1024
             #numDataRounded = numData - numData%.001 #Round voltage value to 3 decimal points
-            #pmt_graph.append(udsp.signal_ary[0])
-            #for i in range(dsp.FILTBLK_SIZE):
-			#	pmt_graph.append(udsp.signal_ary) #numDataRounded)
 
 '''
-=======
-            numData = pmt_data.popleft()
-            #numData = numData*3.3/1024
-            numDataRounded = numData #- numData%.001 #Round voltage value to 3 decimal points
-            pmt_graph.append(numDataRounded)
-            pmt_write.append(str(numDataRounded))
-
-##This thread takes the data from pmt_graph, prepares it for graphing, and adds it to pmtData.
 class pmtGraphThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -389,7 +423,6 @@ class pmtGraphThread (threading.Thread):
             graph_sema.release()
 '''
 
-##This thread takes the data from time_write and pmt_write and wirtes them to the .csv output file.
 class dataWriteThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -412,13 +445,15 @@ def update():
     global xRightIndex
     #global pmtData
     global pmt_filtered
+    global pmt_thresholded
     global xSamples
 
     if (len(pmt_filtered) > 0): #We will plot new values once we have this many values to plot
         if (xLeftIndex == 0):
             ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
             pmtPlotWidget.clear()
-
+            procplot_widget.clear()
+                       
         ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
         ## Documentation for these types can be found on pyqtgraph's website
         
@@ -427,17 +462,20 @@ def update():
         xRightIndex += len(pmt_filtered)
 
         pmtCurve = pmtPlotWidget.plot()
+        procplot_curve = procplot_widget.plot()
         xRange = range(xLeftIndex, xRightIndex)
         pmtCurve.setData(xRange, pmt_filtered)
+        procplot_curve.setData(xRange, pmt_thresholded)
 
         ## Now that we've plotting the values, we no longer need these arrays to store them
         pmt_filtered = []
+        pmt_thresholded = []
+        
         xLeftIndex = xRightIndex
         graphCount = 0
         if(xRightIndex >= xSamples):
             xRightIndex = 0
             xLeftIndex = 0
-            #pmtData = []
         
         graph_sema.release()
         
@@ -451,9 +489,6 @@ def update():
 #    def __init__(self):                    #But it appears that this can't be a seperate thread because of Qt stuff
 #        threading.Thread.__init__(self)
 #    def run(self):
-=======
-##This function is called by the timer below. It graphs the data in pmtData. This is not a seperate thread
-##because QT only allows the graph to be modified in the same thread it was created in, which is the main thread.
 def update():
     global xLeftIndex
     global xRightIndex
@@ -505,12 +540,12 @@ app.exec_()
 endTime = timeElapsedPrev
 packetsSent = (endTime - startTime) / usecBetweenPackets
 packetsMissed = packetsSent - packetsRecieved
-if packetsMissed <= 0:
-    percentageMissed = 0.0
-else:
+if packetsSent > 0:
     percentageMissed = (float(packetsMissed) / float(packetsSent)) * 100.0
+else:
+    percentageMissed = 0
 print("start: " + str(startTime) + "  endTime: " + str(endTime) + "  received: " + str(packetsRecieved) + '\n')
-print("You missed " + str(int(packetsMissed)) + " out of " + str(int(packetsSent)) + " packets sent. (" + str(percentageMissed) + "%)")
+print("You missed " + str(packetsMissed) + " out of " + str(packetsSent) + " packets sent. (" + str(percentageMissed) + "%)")
 
 # Prompts the user to add a description for the test data and saves it in RecordedData\TestNotes.txt
 ## Tkinter is used to create this window
