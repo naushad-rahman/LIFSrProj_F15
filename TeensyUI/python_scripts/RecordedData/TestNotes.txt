@@ -8,3 +8,15 @@ Testing PMT and logging system. This data will be used to run simulation tests. 
 
 ***20151029_115147.csv***
 test
+
+
+***20151106_083803.csv***
+[I just don't know what went wrong]
+[Microfluidic device #00A]
+[No notes were included for this test.]
+
+
+***20151106_104212.csv***
+[Successful experiment]
+[Microfluidic device #00A]
+Didn't really see any spikes due to rhodamine concentration.
