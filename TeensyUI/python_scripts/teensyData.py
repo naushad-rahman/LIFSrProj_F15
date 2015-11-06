@@ -20,6 +20,7 @@ from collections import deque
 import pprint                       #For pretty debug printing
 import binascii
 import struct
+import ufluidics_dsp as udsp
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
@@ -53,9 +54,9 @@ def startButtonClicked():
         pmt_data_thread = pmtDataThread()
         pmt_data_thread.daemon = True
         pmt_data_thread.start()
-        pmt_graph_thread = pmtGraphThread()
-        pmt_graph_thread.daemon = True
-        pmt_graph_thread.start()
+        #pmt_graph_thread = pmtGraphThread()
+        #pmt_graph_thread.daemon = True
+        #pmt_graph_thread.start()
         data_write_thread = dataWriteThread()
         data_write_thread.daemon = True
         data_write_thread.start()
@@ -166,7 +167,6 @@ layout2.addWidget(pmtPlotWidget2, 1, 2, 1, 1)  # wGL goes on right side, spannin
 ## Display the widget as a new window
 w2.show()
 
-
 ## Create plot widget for PMT signal input
 ## For real time plotting
 pmtPlotWidget = pg.PlotWidget()
@@ -231,13 +231,14 @@ f.write("Timestamp,PMT\n")
 ## changes. It's the same number that appears on the bottom right corner of the
 ## window containing the TeensyDataWrite.ino code
 
-teensySerialData = serial.Serial("COM4", 115200)
+teensySerialData = serial.Serial("/dev/ttyUSB1", 115200)
 
 #change this to match the value in the Teensy's "timer0.begin(SampleVoltage, 110);" line
 usecBetweenPackets = 110.0
 
 packetsRecieved = 0L
 
+# Data structures for data from Teensy
 recieved_data = deque()
 time_data = deque()
 pmt_data = deque()
@@ -294,8 +295,9 @@ class serialReadThread (threading.Thread):
                 teensySerialData.flushInput()
                 continue
             #Bytes read in and stored in a char array of size six
-            time_data.append(time_value)
-            pmt_data.append(adc_value)
+            time_data.append(time_value) #Append time value to time_data deque
+            pmt_write.append(str(adc_value)) #Append string adc value to pmt_write deque
+            pmt_data.append(adc_value) #Append adc value to pmt_data deque
             ##print out the recieved data in hex format for testing
             # out = ""
             # for d in struct.unpack(">LHH", teensySerialData.read(8)):
@@ -332,8 +334,10 @@ class timeDataThread (threading.Thread):
             ## This is useful to determine if your code is running too slow
             #if (timeElapsed - timeElapsedPrev > 8000):
             #    print(str((timeElapsed-timeElapsedPrev)/7400))
-            if (timeElapsed - timeElapsedPrev > (usecBetweenPackets*1.5)):
-                print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
+            #if (timeElapsed - timeElapsedPrev > (usecBetweenPackets*1.5)):
+                #print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
+
+pmt_filtered = []
 
 class pmtDataThread (threading.Thread):
     def __init__(self):
@@ -341,15 +345,30 @@ class pmtDataThread (threading.Thread):
     def run(self):
         global startBtnClicked
         global pmt_data
+        global xRightIndex
+        global pmt_filtered
         while (startBtnClicked):
-            while(not len(pmt_data) >= 2):
+            while(not (len(pmt_data) >= 2)):
                 pass
-            numData = pmt_data.popleft()
-            numData = numData*3.3/1024
-            numDataRounded = numData - numData%.001 #Round voltage value to 3 decimal points
-            pmt_graph.append(numDataRounded)
-            pmt_write.append(str(numDataRounded))
+            udsp.signal_ary.append(pmt_data.popleft())
+            if len(udsp.signal_ary) >= udsp.FILTBLK_SIZE:
+                graph_sema.acquire()
+                pmt_filtered.extend(udsp.filter_signal(udsp.signal_ary[0:udsp.FILTBLK_SIZE]))
+                del udsp.signal_ary[0:udsp.FILTBLK_SIZE]
+                graph_sema.release()
+                print ('DT: len(pmt_filtered) = ', len(pmt_filtered))
+            	#xRightIndex += udsp.FILTBLK_SIZE
+            #print idx, len(pmt_data)
+            #for i in range(udsp.FILTBLK_SIZE-1):
+            #	udsp.signal_ary[i] = pmt_data.popleft()
+            #numData = pmt_data.popleft()
+            #numData = numData*3.3/1024
+            #numDataRounded = numData - numData%.001 #Round voltage value to 3 decimal points
+            #pmt_graph.append(udsp.signal_ary[0])
+            #for i in range(dsp.FILTBLK_SIZE):
+			#	pmt_graph.append(udsp.signal_ary) #numDataRounded)
 
+'''
 class pmtGraphThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -366,6 +385,7 @@ class pmtGraphThread (threading.Thread):
             pmtData.append(numDataRounded)
             xRightIndex = xRightIndex + 1
             graph_sema.release()
+'''
 
 class dataWriteThread (threading.Thread):
     def __init__(self):
@@ -384,6 +404,47 @@ class dataWriteThread (threading.Thread):
             f.write(stringToWrite)
             packetsRecieved += 1
 
+def update():
+    global xLeftIndex
+    global xRightIndex
+    #global pmtData
+    global pmt_filtered
+    global xSamples
+
+    if (len(pmt_filtered) > 0): #We will plot new values once we have this many values to plot
+        if (xLeftIndex == 0):
+            ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
+            pmtPlotWidget.clear()
+
+        ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
+        ## Documentation for these types can be found on pyqtgraph's website
+        
+        graph_sema.acquire()
+        
+        xRightIndex += len(pmt_filtered)
+
+        pmtCurve = pmtPlotWidget.plot()
+        xRange = range(xLeftIndex, xRightIndex)
+        print('len(xRange) =', len(xRange), 'len(pmt_filtered) =', len(pmt_filtered))
+        pmtCurve.setData(xRange, pmt_filtered)
+
+        ## Now that we've plotting the values, we no longer need these arrays to store them
+        pmt_filtered = []
+        xLeftIndex = xRightIndex
+        graphCount = 0
+        if(xRightIndex >= xSamples):
+            xRightIndex = 0
+            xLeftIndex = 0
+            #pmtData = []
+        
+        graph_sema.release()
+        
+#    if (startBtnClicked):
+#        print("recieved_data: " + str(recieved_data.qsize()) + "    time_data:" + str(time_data.qsize()) +
+#        "    pmt_data:" + str(pmt_data.qsize()) + "    time_write:" + str(time_write.qsize()) +
+#        "    pmt_write:" + str(pmt_write.qsize()) + "    pmt_graph:" + str(pmt_graph.qsize())
+
+'''
 #class graphingThread (threading.Thread):   #Use this instead of "def update():" to turn it back into a thread.
 #    def __init__(self):                    #But it appears that this can't be a seperate thread because of Qt stuff
 #        threading.Thread.__init__(self)
@@ -397,7 +458,7 @@ def update():
 
     #while (startBtnClicked):#used when this was a thread
 
-    if (len(pmtData) >= 100): #We will plot new values once we have this many values to plot
+    if (len(pmtData) >= udsp.FILTBLK_SIZE): #We will plot new values once we have this many values to plot
         if (xLeftIndex == 0):
             ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
             pmtPlotWidget.clear()
@@ -425,6 +486,7 @@ def update():
 #        print("recieved_data: " + str(recieved_data.qsize()) + "    time_data:" + str(time_data.qsize()) +
 #        "    pmt_data:" + str(pmt_data.qsize()) + "    time_write:" + str(time_write.qsize()) +
 #        "    pmt_write:" + str(pmt_write.qsize()) + "    pmt_graph:" + str(pmt_graph.qsize())
+'''
 
 ## Run update function in response to a timer
 timer = QtCore.QTimer()
