@@ -5,6 +5,8 @@ import glob
 import serial
 import time
 
+#Added to check the GIT weirdness
+
 def serial_ports():
 	if sys.platform.startswith('win'):
 		ports = ['COM' + str(i + 1) for i in range(256)]

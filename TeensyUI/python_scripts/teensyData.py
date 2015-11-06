@@ -15,18 +15,23 @@ import numpy as np
 from Tkinter import *               #For the notes prompt
 import json                         #For saving tags
 import threading                    #For multithreading
+import Queue
 from collections import deque
+import pprint                       #For pretty debug printing
+import binascii
 import struct
+import ufluidics_dsp as udsp        #For DSP processing
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
 
 ## Define a top-level widget to hold everything (a window)
 w = QtGui.QWidget()
-w.resize(1000,600)
+w.resize(1000, 600)
 w.setWindowTitle('Voltage Plots')
 
 startBtnClicked = False
+calBtnClicked = False
 
 ## This function contains the behavior we want to see when the start button is clicked
 def startButtonClicked():
@@ -47,9 +52,6 @@ def startButtonClicked():
         pmt_data_thread = pmtDataThread()
         pmt_data_thread.daemon = True
         pmt_data_thread.start()
-        pmt_graph_thread = pmtGraphThread()
-        pmt_graph_thread.daemon = True
-        pmt_graph_thread.start()
         data_write_thread = dataWriteThread()
         data_write_thread.daemon = True
         data_write_thread.start()
@@ -62,11 +64,11 @@ def startButtonClicked():
 def quitButtonClicked():
     ## Close the file and close the window.
     if (startBtnClicked == False):  ##don't quit while still running.
-        f.close()
+        csvFile.close()
         w.close()
 
         #showNow = True
-        data = np.loadtxt(open('RecordedData\\' + fileName,"rb"),delimiter=",",skiprows=2)
+        data = np.loadtxt(open(folderName + fileTime + '.csv' ,"rb"),delimiter=",",skiprows=2)
         numSamples2 = data.shape[0]
         if(len(data) > 0):
             pmtCurve2.setData(data[:,1])
@@ -77,19 +79,29 @@ def quitButtonClicked2():
 ## Buttons to control the High Voltage
 def HVoffButtonClicked():
     teensySerialData.write('0')
+    logFile.write('High Voltage Off: ' + str(timeElapsed) + '\n')
     print("HV Off")
 
 def HVonButtonClicked():
     teensySerialData.write('1')
+    logFile.write('High Voltage On: ' + str(timeElapsed) + '\n')
     print("HV On")
 
 def insertionButtonClicked():
     teensySerialData.write('3')
+    logFile.write('Sample Insertion: ' + str(timeElapsed) + '\n')
     print("Insertion")
 
 def separationButtonClicked():
     teensySerialData.write('2')
+    logFile.write('Sample Separation: ' + str(timeElapsed) + '\n')
     print("Separation")
+
+## Button for Calibration
+def calibrateButtonClicked():
+    global calBtnClicked
+    logFile.write('Signal Calibration: ' + str(timeElapsed) + '\n')
+    calBtnClicked = True
 
 #Start Recording in Widget
 ## Create widgets to be placed inside
@@ -115,6 +127,9 @@ insBtn.setToolTip('Click to start insertion (#3)')
 sepBtn = QtGui.QPushButton("Separation")
 sepBtn.setToolTip('Click to start separation (#2)')
 
+calBtn = QtGui.QPushButton("Calibrate")
+calBtn.setToolTip('Clock to callibrate signal sample')
+
 ## Functions in parantheses are to be called when buttons are clicked
 startBtn.clicked.connect(startButtonClicked)
 quitBtn.clicked.connect(quitButtonClicked)
@@ -123,6 +138,7 @@ HVonBtn.clicked.connect(HVonButtonClicked)
 HVoffBtn.clicked.connect(HVoffButtonClicked)
 insBtn.clicked.connect(insertionButtonClicked)
 sepBtn.clicked.connect(separationButtonClicked)
+calBtn.clicked.connect(calibrateButtonClicked)
 
 ## xSamples is the maximum amount of samples we want graphed at a time
 xSamples = 30000
@@ -157,13 +173,20 @@ layout2.addWidget(pmtPlotWidget2, 1, 2, 1, 1)  # wGL goes on right side, spannin
 ## Display the widget as a new window
 w2.show()
 
-
 ## Create plot widget for PMT signal input
 ## For real time plotting
 pmtPlotWidget = pg.PlotWidget()
 pmtPlotWidget.setYRange(0, 4096)
 pmtPlotWidget.setXRange(0, xSamples)
 pmtPlotWidget.setLabel('top', text = "PMT") #Title to appear at top of widget
+
+# Create and initialize plot widget for processed signals
+PROCPLOT_TITLE = "Filtered Processed PMT Data"
+procplot_widget = pg.PlotWidget()
+procplot_widget.setYRange(0, 1)
+procplot_widget.setXRange(0, xSamples)
+procplot_widget.setLabel('top', text=PROCPLOT_TITLE)
+#procplot_curve = procplot_widget.plot() # Check with this line it may be done later in code
 
 ## Create a grid layout to manage the widgets size and position
 ## The grid layout allows us to place a widget in a given column and row
@@ -173,13 +196,15 @@ w.setLayout(layout)
 ## Add widgets to the layout in their proper positions
 ## The first number in parantheses is the row, the second is the column
 layout.addWidget(quitBtn, 0, 0)
-layout.addWidget(startBtn, 2, 0)
+layout.addWidget(startBtn, 3, 0)
 layout.addWidget(HVonBtn, 0, 2)
-layout.addWidget(insBtn, 2, 2)
-layout.addWidget(sepBtn, 3, 2)
-layout.addWidget(HVoffBtn, 4, 2)
+layout.addWidget(insBtn, 3, 2)
+layout.addWidget(sepBtn, 4, 2)
+layout.addWidget(HVoffBtn, 5, 2)
+layout.addWidget(calBtn, 6, 2)
 
 layout.addWidget(pmtPlotWidget, 1, 1)
+layout.addWidget(procplot_widget, 2, 1)
 
 ## Display the widget as a new window
 w.show()
@@ -191,10 +216,6 @@ w.show()
 ## These values will reset when they reach the value of xSamples
 xRightIndex = 0
 xLeftIndex = 0
-
-## These arrays will hold the unplotted voltage values from the pmt
-## and the peak detector until we are able to update the plot
-pmtData = []
 
 ## Used to determine how often we plot a range of values
 graphCount = 0
@@ -208,35 +229,51 @@ timeElapsedPrev = 0L
 firstRun = True
 
 ## Create new file, with the name being today's date and current time and write headings to file in CSV format
-i = datetime.now()
-#fileName = str(i.year) + str(i.month) + str(i.day) + "_" + str(i.hour) + str(i.minute) + str(i.second) + ".csv"
-fileName = strftime("%Y%m%d_%H%M%S.csv")
+fileTime = strftime("%Y%m%d_%H%M%S")
+folderName = 'RecordedData/'
 
 ## File is saved to Documents/IPython Notebooks/RecordedData
-f = open('RecordedData\\' + fileName, 'a')
-f.write("#Data from " + str(i.year) + "-" + str(i.month) + "-" + str(i.day) + " at " + str(i.hour) + ":" + str(i.minute) + ":" + str(i.second) + '\n')
-f.write("Timestamp,PMT\n")
+i = datetime.now()
+timeString = str(i.year) + "-" + str(i.month) + "-" + str(i.day) + " at " + \
+	str(i.hour) + ":" + str(i.minute) + ":" + str(i.second)
+csvFile = open(folderName + fileTime + '.csv', 'a')
+csvFile.write("# Data from " + timeString + '\n')
+csvFile.write("Timestamp,PMT\n")
+
+## File for logging
+logFile = open(folderName + fileTime + '.log', 'a')
+logFile.write('# Log from ' + timeString + '\n\n')
+logFile.write('# DSP Processing Report:\n')
+logFile.write(udsp.PROCESSING_TYPE)
+logFile.write('\n# Event: timestamp (from teensy)\n')
 
 ## Initialize the container for our voltage values read in from the teensy
 ## IMPORTANT NOTE: The com port value needs to be updated if the com value
 ## changes. It's the same number that appears on the bottom right corner of the
 ## window containing the TeensyDataWrite.ino code
 
-teensySerialData = serial.Serial("COM6", 115200, writeTimeout = 0)
+teensySerialData = serial.Serial("/dev/ttyUSB0", 115200)
 
 #change this to match the value in the Teensy's "timer0.begin(SampleVoltage, 110);" line
 usecBetweenPackets = 110.0
 
 packetsRecieved = 0L
 
+# Data structures for data from Teensy
 recieved_data = deque()
 time_data = deque()
 pmt_data = deque()
 time_write = deque()
 pmt_write = deque()
-pmt_graph = deque()
 graph_sema = threading.Semaphore()
 
+filter_block = []
+pmt_filtered = []
+pmt_thresholded = []
+pmt_calibrate = []
+
+pmt_baseline = 0.0
+pmt_threshold = 100.0 #default threshold value
 startTime = 0L;
 endTime = 0L;
 
@@ -261,8 +298,7 @@ def serialThreadRun(times):
 # import cProfile
 # import re
 # cProfile.run('serialThreadRun("100")')
-
-##This thread reads the serial data, unpacks it, and places it in the time_data and pmt_data deques
+        
 class serialReadThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -286,16 +322,15 @@ class serialReadThread (threading.Thread):
                 teensySerialData.flushInput()
                 continue
             #Bytes read in and stored in a char array of size six
-            time_data.append(time_value)
-            pmt_data.append(adc_value)
+            time_data.append(time_value) #Append time value to time_data deque
+            pmt_write.append(str(adc_value)) #Append string adc value to pmt_write deque
+            pmt_data.append(adc_value) #Append adc value to pmt_data deque
             ##print out the recieved data in hex format for testing
             # out = ""
             # for d in struct.unpack(">LHH", teensySerialData.read(8)):
                 # out += ('%08X' % d) + " "
             # print(out)
 
-##This thread takes the time data from the time_data deque, checks if time was missed, and adds the time data,
-##as a string, to the time_write deque.
 class timeDataThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -306,7 +341,7 @@ class timeDataThread (threading.Thread):
         global startTime
         global time_data
         while (startBtnClicked):
-            while(not len(time_data) > 0):
+            while(not time_data):
                 pass
             timeElapsedPrev = timeElapsed
             timeElapsed = time_data.popleft()
@@ -316,54 +351,52 @@ class timeDataThread (threading.Thread):
 
             # We'll add all our values to this string until we're ready to exit the loop, at which point it will be written to a file
             time_write.append(str(timeElapsed))
-            
-            #print(str(timeElapsed))
 
             ## This difference calucalted in the if statement is the amount of time in microseconds since the last value
             ## we read in and wrote to a file. If this value is significantly greater than 100, we know we have missed some
             ## values, probably as a result of the buffer filling up and scrapping old values to make room for new values.
             ## The number we print out will be the approximate number of values we failed to read in.
             ## This is useful to determine if your code is running too slow
-            #if (timeElapsed - timeElapsedPrev > 8000):
-            #    print(str((timeElapsed-timeElapsedPrev)/7400))
             if (timeElapsed - timeElapsedPrev > (usecBetweenPackets*1.5)):
                 print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
+                logFile.write('Missed Sample: ' + str(timeElapsed) + '\n')
 
-##This thread takes the pmt data from the pmt_data deque, filters it (to be implemented) and adds the filtered data to pmt_graph.
 class pmtDataThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
+        global calBtnClicked
         global pmt_data
-        while (startBtnClicked):
-            while(not len(pmt_data) >= 2):
-                pass
-            numData = pmt_data.popleft()
-            #numData = numData*3.3/1024
-            numDataRounded = numData #- numData%.001 #Round voltage value to 3 decimal points
-            pmt_graph.append(numDataRounded)
-            pmt_write.append(str(numDataRounded))
-
-##This thread takes the data from pmt_graph, prepares it for graphing, and adds it to pmtData.
-class pmtGraphThread (threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-    def run(self):
         global xRightIndex
-        global pmtData
-        global startBtnClicked
-
+        global filter_block
+        global pmt_filtered
+        global pmt_calibrate
+        global pmt_baseline
+        global pmt_threshold
         while (startBtnClicked):
-            while(not pmt_graph):
+            while(not pmt_data):
                 pass
-            numDataRounded = pmt_graph.popleft()
-            graph_sema.acquire()
-            pmtData.append(numDataRounded)
-            xRightIndex = xRightIndex + 1
-            graph_sema.release()
+            filter_block.append(pmt_data.popleft())
+            if len(filter_block) >= udsp.FILTBLK_SIZE:
+                graph_sema.acquire()
+                filter_block = udsp.filter_signal(filter_block)
+                if calBtnClicked:
+                    pmt_calibrate.extend(filter_block)
+                filter_block[:] = [x - pmt_baseline for x in filter_block]
+                pmt_filtered.extend(filter_block)
+                filter_block[:] = [x > pmt_threshold for x in filter_block]
+                filter_block = udsp.filter_threshold(filter_block)
+                pmt_thresholded.extend(filter_block)
+                filter_block = []
+                graph_sema.release()
+            if calBtnClicked and pmt_calibrate:
+                if len(pmt_calibrate) >= udsp.CALIBRATION_WIDTH:
+                    pmt_baseline, pmt_threshold = udsp.calibrate(pmt_calibrate)
+                    pmt_calibrate = []
+                    calBtnClicked = False
+                    print "PMT Baseline:", pmt_baseline, "PMT Threshold:", pmt_threshold
 
-##This thread takes the data from time_write and pmt_write and wirtes them to the .csv output file.
 class dataWriteThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -378,48 +411,46 @@ class dataWriteThread (threading.Thread):
             pmtNumDataRounded = pmt_write.popleft()
             
             stringToWrite = localTimeElapsed + "," + pmtNumDataRounded + '\n'
-            f.write(stringToWrite)
+            csvFile.write(stringToWrite)
             packetsRecieved += 1
 
-##This function is called by the timer below. It graphs the data in pmtData. This is not a seperate thread
-##because QT only allows the graph to be modified in the same thread it was created in, which is the main thread.
 def update():
     global xLeftIndex
     global xRightIndex
-    global pmtData
+    global pmt_filtered
+    global pmt_thresholded
     global xSamples
-    #global startBtnClicked
 
-    #while (startBtnClicked):#used when this was a thread
-
-    if (len(pmtData) >= 100): #We will plot new values once we have this many values to plot
+    if (len(pmt_filtered) > 0): #We will plot new values once we have this many values to plot
         if (xLeftIndex == 0):
             ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
             pmtPlotWidget.clear()
-
+            procplot_widget.clear()
+                       
         ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
         ## Documentation for these types can be found on pyqtgraph's website
-
+        
         graph_sema.acquire()
+        
+        xRightIndex += len(pmt_filtered)
 
         pmtCurve = pmtPlotWidget.plot()
-        xRange = range(xLeftIndex,xRightIndex)
-        pmtCurve.setData(xRange, pmtData)
+        procplot_curve = procplot_widget.plot()
+        xRange = range(xLeftIndex, xRightIndex)
+        pmtCurve.setData(xRange, pmt_filtered)
+        procplot_curve.setData(xRange, pmt_thresholded)
 
         ## Now that we've plotting the values, we no longer need these arrays to store them
-        pmtData = []
+        pmt_filtered = []
+        pmt_thresholded = []
+        
         xLeftIndex = xRightIndex
         graphCount = 0
         if(xRightIndex >= xSamples):
             xRightIndex = 0
             xLeftIndex = 0
-            pmtData = []
-
+        
         graph_sema.release()
-#    if (startBtnClicked):
-#        print("recieved_data: " + str(recieved_data.qsize()) + "    time_data:" + str(time_data.qsize()) +
-#        "    pmt_data:" + str(pmt_data.qsize()) + "    time_write:" + str(time_write.qsize()) +
-#        "    pmt_write:" + str(pmt_write.qsize()) + "    pmt_graph:" + str(pmt_graph.qsize())
 
 ## Run update function in response to a timer
 timer = QtCore.QTimer()
@@ -433,12 +464,19 @@ app.exec_()
 endTime = timeElapsedPrev
 packetsSent = (endTime - startTime) / usecBetweenPackets
 packetsMissed = packetsSent - packetsRecieved
-if packetsMissed <= 0:
-    percentageMissed = 0.0
-else:
+if packetsSent > 0:
     percentageMissed = (float(packetsMissed) / float(packetsSent)) * 100.0
+else:
+    percentageMissed = 0
 print("start: " + str(startTime) + "  endTime: " + str(endTime) + "  received: " + str(packetsRecieved) + '\n')
-print("You missed " + str(int(packetsMissed)) + " out of " + str(int(packetsSent)) + " packets sent. (" + str(percentageMissed) + "%)")
+print("You missed " + str(packetsMissed) + " out of " + str(packetsSent) + " packets sent. (" + str(percentageMissed) + "%)")
+
+logFile.write('Start Time: ' + str(startTime) + '\n')
+logFile.write('End Time: ' + str(endTime) + '\n')
+logFile.write('Packets Received: ' + str(packetsRecieved) + '\n')
+logFile.write('Packets Sent: ' + str(packetsSent) + '\n')
+logFile.write('Packets Missed: ' + str(endTime) + ' (' + str(percentageMissed) + '%)' + '\n')
+logFile.close()
 
 # Prompts the user to add a description for the test data and saves it in RecordedData\TestNotes.txt
 ## Tkinter is used to create this window
@@ -541,7 +579,7 @@ successCheck.pack(in_ = checks, side = LEFT, padx = 10)
 wrongCheck.pack(in_ = checks, side = LEFT, padx = 10)
 
 ## Dictionary for keeping track of tags
-with open('RecordedData\\tags.json', 'r') as fp:
+with open(folderName + 'tags.json', 'r') as fp:
     checkDict = json.load(fp)
 
 ## This function runs when the submit button is pressed
@@ -554,7 +592,7 @@ def submit():
     if text == "":
         text = "[No notes were included for this test.]"
     ## create new dictionary entry
-    checkDict[fileName] = {"deviceNum": deviceNum, "deviceUsed": deviceNumUsedEntry.get(), "laserPos": laserPosEntry.get(), "analogGain": analogGainEntry.get(),
+    checkDict[fileTime] = {"deviceNum": deviceNum, "deviceUsed": deviceNumUsedEntry.get(), "laserPos": laserPosEntry.get(), "analogGain": analogGainEntry.get(),
         "laserVolt": laserVoltEntry.get(), "pmtVolt": pmtVoltEntry.get(), "hvSettings": hvSettingsEntry.get(), "buffSol": buffSolEntry.get(),
         "fluorophore": fluorophoreEntry.get(), "fluorophoreCon": fluorophoreConEntry.get(), "success": success.get(), "broken": broken.get(),
         "wrong": wrong.get(), "text": text}
@@ -568,11 +606,11 @@ def submit():
     if success.get() == 1:
         text = "[Successful experiment]\n" + text
     ## Write to the file
-    fNote = open('RecordedData\\TestNotes.txt','a')
-    fNote.write("\n\n***" + fileName + "***\n" + text + "\n")
+    fNote = open(folderName + 'TestNotes.txt','a')
+    fNote.write("\n\n***" + fileTime + "***\n" + text + "\n")
     fNote.close()
     ## Write tags to .json file
-    with open('RecordedData\\tags.json', 'w') as fp:
+    with open(folderName + 'tags.json', 'w') as fp:
         json.dump(checkDict, fp)
     ## Close the window
     testNotes.destroy()
