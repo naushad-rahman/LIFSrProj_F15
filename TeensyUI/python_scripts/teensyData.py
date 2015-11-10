@@ -230,7 +230,7 @@ firstRun = True
 
 ## Create new file, with the name being today's date and current time and write headings to file in CSV format
 fileTime = strftime("%Y%m%d_%H%M%S")
-folderName = 'RecordedData/'
+folderName = 'RecordedData\\'
 
 ## File is saved to Documents/IPython Notebooks/RecordedData
 i = datetime.now()
@@ -252,7 +252,7 @@ logFile.write('\n# Event: timestamp (from teensy)\n')
 ## changes. It's the same number that appears on the bottom right corner of the
 ## window containing the TeensyDataWrite.ino code
 
-teensySerialData = serial.Serial("/dev/ttyUSB0", 115200)
+teensySerialData = serial.Serial("COM6", 115200)
 
 #change this to match the value in the Teensy's "timer0.begin(SampleVoltage, 110);" line
 usecBetweenPackets = 110.0

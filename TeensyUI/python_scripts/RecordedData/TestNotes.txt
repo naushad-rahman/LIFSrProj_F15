@@ -1,10 +1,29 @@
 This file holds the notes made about the experiment data files.
 
-***20151027_151346.csv***
+***20151027_151346***
 [Successful experiment]
 [Microfluidic device #N/A]
 Testing PMT and logging system. This data will be used to run simulation tests. It provides dark current and noise with signal as the XYZ runs between wells filled with fluorophore to show some florecing signal. The details are not included as they are not important at this time
 
+***20151103_140844***
+[Uncertain results]
+[Microfludic device #00A]
+This was part of an in class presentation to Dr. Nordin. The results are uncertain. There may have been a very good signal but further investigation is requred. To better integrate data notes with actual test procedures future tests will include a .log file as well as a .csv that will describe the events of the test procedure
 
-***20151029_115147.csv***
-test
+
+***20151106_083803***
+[I just don't know what went wrong]
+[Microfluidic device #00A]
+(Canute running tests on his own)
+
+
+***20151106_100243***
+[I just don't know what went wrong]
+[Microfluidic device #00A]
+(Canute running tests on his own)
+
+
+***20151106_104212***
+[Successful experiment]
+[Microfluidic device #00A]
+Didn't really see any spikes due to rhodamine concentration. (Canute running tests on his own)

@@ -7,3 +7,4 @@
 *.sfp
 *.inc
 *copy*
+TeensyUI/python_scripts/RecordedData/*.csv
