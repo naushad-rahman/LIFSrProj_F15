@@ -5,7 +5,6 @@ This file holds the notes made about the experiment data files.
 [Microfluidic device #N/A]
 Testing PMT and logging system. This data will be used to run simulation tests. It provides dark current and noise with signal as the XYZ runs between wells filled with fluorophore to show some florecing signal. The details are not included as they are not important at this time
 
-
 ***20151103_140844***
 [Uncertain results]
 [Microfludic device #00A]
