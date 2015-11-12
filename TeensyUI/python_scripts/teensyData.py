@@ -268,6 +268,7 @@ pmt_write = deque()
 graph_sema = threading.Semaphore()
 
 filter_block = []
+time_block = []
 pmt_filtered = []
 pmt_thresholded = []
 pmt_calibrate = []
@@ -276,6 +277,13 @@ pmt_baseline = 0.0
 pmt_threshold = 100.0 #default threshold value
 startTime = 0L;
 endTime = 0L;
+
+sample_detected = False
+high_start = -1
+
+time = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+test = [0, 1, 1, 0, 1, 0, 1, 1, 1, 0]
+detected, high_start = udsp.detect_sample(test, time, high_start)
 
 #ignore this. It's just for testing
 def serialThreadRun(times):
@@ -323,6 +331,7 @@ class serialReadThread (threading.Thread):
                 continue
             #Bytes read in and stored in a char array of size six
             time_data.append(time_value) #Append time value to time_data deque
+            time_block.append(time_value) #Extend time value to time_block to report detections
             pmt_write.append(str(adc_value)) #Append string adc value to pmt_write deque
             pmt_data.append(adc_value) #Append adc value to pmt_data deque
             ##print out the recieved data in hex format for testing
@@ -374,10 +383,14 @@ class pmtDataThread (threading.Thread):
         global pmt_calibrate
         global pmt_baseline
         global pmt_threshold
+        global sample_detected
+        global high_start
         while (startBtnClicked):
             while(not pmt_data):
                 pass
+            
             filter_block.append(pmt_data.popleft())
+            
             if len(filter_block) >= udsp.FILTBLK_SIZE:
                 graph_sema.acquire()
                 filter_block = udsp.filter_signal(filter_block)
@@ -388,8 +401,18 @@ class pmtDataThread (threading.Thread):
                 filter_block[:] = [x > pmt_threshold for x in filter_block]
                 filter_block = udsp.filter_threshold(filter_block)
                 pmt_thresholded.extend(filter_block)
+                detections, high_start = udsp.detect_sample(filter_block, time_block, high_start)
                 filter_block = []
+                time_block = []
                 graph_sema.release()
+                
+                while detections:
+                	peak, width = detections.pop()
+                	logFile.write("Sample Detected: " + str(peak))
+                	print("Sample Detected: " + str(peak))
+                	logFile.write("Sample Width: " + str(width))
+                	print("Sample Width: " + str(width))
+            
             if calBtnClicked and pmt_calibrate:
                 if len(pmt_calibrate) >= udsp.CALIBRATION_WIDTH:
                     pmt_baseline, pmt_threshold = udsp.calibrate(pmt_calibrate)

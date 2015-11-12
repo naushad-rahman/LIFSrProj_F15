@@ -98,3 +98,26 @@ def calibrate(signal):
 	threshold = np.std(signal) * THRESHOLD_SD
 	return baseline, threshold
 
+def detect_sample(signal, time, start):
+	detections = []
+	signal_high = False
+	if start >= 0:
+		signal_high = True
+	
+	for i in range(len(signal)):
+		if signal[i] >= 1 and not signal_high:
+			start = time[i]
+			signal_high = True
+		
+		if signal[i] < 1 and signal_high:
+			end = time[i]
+			signal_high = False
+			
+			width = end - start
+			peak = start + width/2
+			detections.extend([peak, width])
+	
+	if not signal_high:
+		end = -1
+	
+	return detections, end
