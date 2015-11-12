@@ -195,17 +195,28 @@ def setPosition(name):
 	global y_pos
 	global z_pos
 	global position
-	setString = name
+	q = name.split(':')
+	setString = q[0]
 	t = 0
 	for x in position:
 		n = x.split(':')
-		print(n[0] + " " + name)
-		if (n[0] == name):
+		print(n[0] + " " + q[0])
+		if (n[0] == q[0]):
 			setString += ":" + str(x_pos) + ":" + str(y_pos) + ":" + str(z_pos)
 			position[t] = setString
 		t += 1
+	#updateMenu()
 	print("Position set." + str(position))
-			
+	
+	
+
+def updateMenu():
+	t = 0
+	for x in position:
+		name = x.split(':')
+		set_position_menu.entryconfig(t, label=str(name[0]), command=lambda x=x: setPosition(x))
+		print(name)
+		t += 1
 
 root = tk.Tk()
 readFile()
@@ -229,7 +240,8 @@ for x in position:
 	
 for x in position:
 	name = x.split(':')
-	set_position_menu.add_command(label=str(name[0]), command=lambda x=x: setPosition(name[0]))
+	set_position_menu.add_command(label=str(name[0]), command=lambda x=x: setPosition(x))
+	print(name[0])
 
 menubar.add_cascade(label="Ports...", menu=portmenu)
 menubar.add_cascade(label="Positions...", menu=positionmenu)

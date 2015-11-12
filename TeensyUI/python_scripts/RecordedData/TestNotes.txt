@@ -27,3 +27,29 @@ This was part of an in class presentation to Dr. Nordin. The results are uncerta
 [Successful experiment]
 [Microfluidic device #00A]
 Didn't really see any spikes due to rhodamine concentration. (Canute running tests on his own)
+
+
+***20151110_124419***
+[Successful experiment]
+[Microfluidic device #00A]
+Noticed some spikes, especially when the Rhodamine was introduced to the system. Not sure if Rhodamine was flowing because there didn't seem to be any in other wells at the end of the experiment. Also didn't notice any in channel during experiment. After inspecting the MFD after the experiment, I believe 00A may be dead.
+
+
+***20151110_134130***
+[Equipment failure]
+[Microfluidic device #007]
+High Voltage system not working.
+
+
+***20151110_140733***
+[No notes were included for this test.]
+
+
+***20151110_144527***
+[Successful experiment]
+[Microfluidic device #008]
+Saw flourophore. November 10, 2015 between 2 and 3
+
+
+***20151112_104301***
+Just testing the HV system. No data recorded.
