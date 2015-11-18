@@ -281,10 +281,6 @@ endTime = 0L;
 sample_detected = False
 high_start = -1
 
-time = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-test = [0, 1, 1, 0, 1, 0, 1, 1, 1, 0]
-detected, high_start = udsp.detect_sample(test, time, high_start)
-
 #ignore this. It's just for testing
 def serialThreadRun(times):
     ## Set global precedence to previously defined values
@@ -377,8 +373,8 @@ class pmtDataThread (threading.Thread):
         global startBtnClicked
         global calBtnClicked
         global pmt_data
-        global xRightIndex
         global filter_block
+        global time_block
         global pmt_filtered
         global pmt_calibrate
         global pmt_baseline
