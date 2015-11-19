@@ -151,13 +151,23 @@ def send_movement_command(XYZ_set, axis, direction, distance):
 	setTextBox("1.0", "1.100", "Sent: " + to_write)
 
 def send_position(command):
+	global position
 	com = command.split(':')
+	t = 0
+	pos_vector = []
+	for x in position:
+		n = x.split(':')
+		print(n[0] + " " + com[0])
+		if (n[0] == com[0]):
+			pos_vector = x
+		t += 1
 	global x_pos
 	global y_pos
 	global z_pos
-	x_move = int(com[1])
-	y_move = int(com[2])
-	z_move = int(com[3])
+	pos = pos_vector.split(':')
+	x_move = int(pos[1])
+	y_move = int(pos[2])
+	z_move = int(pos[3])
 	x_final = abs(x_pos - x_move)
 	y_final = abs(y_pos - y_move)
 	z_final = abs(z_pos - z_move)

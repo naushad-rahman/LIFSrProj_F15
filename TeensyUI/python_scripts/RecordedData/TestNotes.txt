@@ -53,3 +53,21 @@ Saw flourophore. November 10, 2015 between 2 and 3
 
 ***20151112_104301***
 Just testing the HV system. No data recorded.
+
+
+***20151112_141058***
+[No notes were included for this test.]
+
+
+***20151112_142445***
+[No notes were included for this test.]
+
+
+***20151112_144544***
+[No notes were included for this test.]
+
+
+***20151118_140927***
+[Successful experiment]
+[Microfluidic device #00B]
+System practice with Cameron. Ran the full system. Did not notice spike when laser focused on lower channel and separation was run.

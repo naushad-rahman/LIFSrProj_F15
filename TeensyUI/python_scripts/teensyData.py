@@ -32,6 +32,7 @@ w.setWindowTitle('Voltage Plots')
 
 startBtnClicked = False
 calBtnClicked = False
+filterData = False
 
 ## This function contains the behavior we want to see when the start button is clicked
 def startButtonClicked():
@@ -49,9 +50,14 @@ def startButtonClicked():
         time_data_thread = timeDataThread()
         time_data_thread.daemon = True
         time_data_thread.start()
-        pmt_data_thread = pmtDataThread()
-        pmt_data_thread.daemon = True
-        pmt_data_thread.start()
+        if (filterData):
+            pmt_data_thread = pmtDataThread()
+            pmt_data_thread.daemon = True
+            pmt_data_thread.start()
+        else:
+            pmt_data_thread = pmtDataThread_LogOnly()
+            pmt_data_thread.daemon = True
+            pmt_data_thread.start()
         data_write_thread = dataWriteThread()
         data_write_thread.daemon = True
         data_write_thread.start()
@@ -130,6 +136,9 @@ sepBtn.setToolTip('Click to start separation (#2)')
 calBtn = QtGui.QPushButton("Calibrate")
 calBtn.setToolTip('Clock to callibrate signal sample')
 
+# Checkbox to determine if incoming data should be filtered
+filterDataChk = QtGui.QCheckBox("Filter data")
+
 ## Functions in parantheses are to be called when buttons are clicked
 startBtn.clicked.connect(startButtonClicked)
 quitBtn.clicked.connect(quitButtonClicked)
@@ -180,13 +189,14 @@ pmtPlotWidget.setYRange(0, 4096)
 pmtPlotWidget.setXRange(0, xSamples)
 pmtPlotWidget.setLabel('top', text = "PMT") #Title to appear at top of widget
 
-# Create and initialize plot widget for processed signals
-PROCPLOT_TITLE = "Filtered Processed PMT Data"
-procplot_widget = pg.PlotWidget()
-procplot_widget.setYRange(0, 1)
-procplot_widget.setXRange(0, xSamples)
-procplot_widget.setLabel('top', text=PROCPLOT_TITLE)
-#procplot_curve = procplot_widget.plot() # Check with this line it may be done later in code
+if (filterData):
+    # Create and initialize plot widget for processed signals
+    PROCPLOT_TITLE = "Filtered Processed PMT Data"
+    procplot_widget = pg.PlotWidget()
+    procplot_widget.setYRange(0, 1)
+    procplot_widget.setXRange(0, xSamples)
+    procplot_widget.setLabel('top', text=PROCPLOT_TITLE)
+    #procplot_curve = procplot_widget.plot() # Check with this line it may be done later in code
 
 ## Create a grid layout to manage the widgets size and position
 ## The grid layout allows us to place a widget in a given column and row
@@ -202,9 +212,11 @@ layout.addWidget(insBtn, 3, 2)
 layout.addWidget(sepBtn, 4, 2)
 layout.addWidget(HVoffBtn, 5, 2)
 layout.addWidget(calBtn, 6, 2)
+layout.addWidget(filterDataChk, 3, 1)
 
 layout.addWidget(pmtPlotWidget, 1, 1)
-layout.addWidget(procplot_widget, 2, 1)
+if (filterData):
+    layout.addWidget(procplot_widget, 2, 1)
 
 ## Display the widget as a new window
 w.show()
@@ -235,7 +247,7 @@ folderName = 'RecordedData\\'
 ## File is saved to Documents/IPython Notebooks/RecordedData
 i = datetime.now()
 timeString = str(i.year) + "-" + str(i.month) + "-" + str(i.day) + " at " + \
-	str(i.hour) + ":" + str(i.minute) + ":" + str(i.second)
+    str(i.hour) + ":" + str(i.minute) + ":" + str(i.second)
 csvFile = open(folderName + fileTime + '.csv', 'a')
 csvFile.write("# Data from " + timeString + '\n')
 csvFile.write("Timestamp,PMT\n")
@@ -252,7 +264,7 @@ logFile.write('\n# Event: timestamp (from teensy)\n')
 ## changes. It's the same number that appears on the bottom right corner of the
 ## window containing the TeensyDataWrite.ino code
 
-teensySerialData = serial.Serial("COM6", 115200)
+teensySerialData = serial.Serial("COM7", 115200)
 
 #change this to match the value in the Teensy's "timer0.begin(SampleVoltage, 110);" line
 usecBetweenPackets = 110.0
@@ -366,6 +378,25 @@ class timeDataThread (threading.Thread):
                 print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
                 logFile.write('Missed Sample: ' + str(timeElapsed) + '\n')
 
+##This thread takes the pmt data from the pmt_data deque, filters it (to be implemented) and adds the filtered data to pmt_graph.
+class pmtDataThread_LogOnly (threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(self):
+        global startBtnClicked
+        global pmt_data
+        global pmt_filtered
+        global xRightIndex
+        while (startBtnClicked):
+            while(not len(pmt_data) >= 2):
+                pass
+            numData = pmt_data.popleft()
+            #numData = numData*3.3/1024
+            #numDataRounded = numData #- numData%.001 #Round voltage value to 3 decimal points
+            graph_sema.acquire()
+            pmt_filtered.append(numData)
+            graph_sema.release()
+
 class pmtDataThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -403,11 +434,11 @@ class pmtDataThread (threading.Thread):
                 graph_sema.release()
                 
                 while detections:
-                	peak, width = detections.pop()
-                	logFile.write("Sample Detected: " + str(peak))
-                	print("Sample Detected: " + str(peak))
-                	logFile.write("Sample Width: " + str(width))
-                	print("Sample Width: " + str(width))
+                    peak, width = detections.pop()
+                    logFile.write("Sample Detected: " + str(peak))
+                    print("Sample Detected: " + str(peak))
+                    logFile.write("Sample Width: " + str(width))
+                    print("Sample Width: " + str(width))
             
             if calBtnClicked and pmt_calibrate:
                 if len(pmt_calibrate) >= udsp.CALIBRATION_WIDTH:
@@ -444,7 +475,8 @@ def update():
         if (xLeftIndex == 0):
             ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
             pmtPlotWidget.clear()
-            procplot_widget.clear()
+            if (filterData):
+                procplot_widget.clear()
                        
         ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
         ## Documentation for these types can be found on pyqtgraph's website
@@ -454,14 +486,17 @@ def update():
         xRightIndex += len(pmt_filtered)
 
         pmtCurve = pmtPlotWidget.plot()
-        procplot_curve = procplot_widget.plot()
         xRange = range(xLeftIndex, xRightIndex)
         pmtCurve.setData(xRange, pmt_filtered)
-        procplot_curve.setData(xRange, pmt_thresholded)
+        
+        if (filterData):
+            procplot_curve = procplot_widget.plot()
+            procplot_curve.setData(xRange, pmt_thresholded)
+            pmt_thresholded = []
+            
 
         ## Now that we've plotting the values, we no longer need these arrays to store them
         pmt_filtered = []
-        pmt_thresholded = []
         
         xLeftIndex = xRightIndex
         graphCount = 0
