@@ -36,8 +36,8 @@ THRESHOLD_FILTER = np.ones(THRESHOLD_WIDTH) / THRESHOLD_WIDTH
 PROCESSING_TYPE = \
 	'# ' + CODE_VERSION + '\n' + \
 	'# ' + CODE_DATE + '\n' + \
-	"# Designed for sample rate of: " + str(SAMPLE_RATE) + ' samp/s\n' + \
 	'# ' + CODE_TYPE + '\n' + \
+	"# Designed for sample rate of: " + str(SAMPLE_RATE) + ' samp/s\n' + \
 	"# Filter: " + LP_FILTER_TYPE + '\n' + \
 	"# Fluoresce minimum period: " + str(FLUORESCE_PERIOD_MIN) + ' s\n' + \
 	"# Threshold standard deviations: " + str(THRESHOLD_SD) + '\n' + \
