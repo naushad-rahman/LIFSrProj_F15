@@ -71,3 +71,22 @@ Just testing the HV system. No data recorded.
 [Successful experiment]
 [Microfluidic device #00B]
 System practice with Cameron. Ran the full system. Did not notice spike when laser focused on lower channel and separation was run.
+
+
+***20151130_113102***
+[Successful experiment]
+[Equipment failure]
+[I just don't know what went wrong]
+Testing HV system, nothing to report.
+
+
+***20151130_113509***
+[Successful experiment]
+[Equipment failure]
+[I just don't know what went wrong]
+Another HV test.
+
+
+***20151130_113838***
+[Successful experiment]
+Final HV test.

@@ -115,14 +115,14 @@ void loop()
         break;
       case 50://Number 2 in 8-bit decimal
         // Separation
-        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-83)/100);
+        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-82)/100);
         analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-83)/100);
-        analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-94)/100);
+        analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-90)/100);
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);
         break;
       case 51:
         // Injection
-        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-100)/100);
+        analogWrite(pwmPin1, RESOLUTION*(D_CYCLE1-87)/100);
         analogWrite(pwmPin2, RESOLUTION*(D_CYCLE2-78)/100);
         analogWrite(pwmPin3, RESOLUTION*(D_CYCLE3-78)/100);
         analogWrite(pwmPin4, RESOLUTION*D_CYCLE4/100);
