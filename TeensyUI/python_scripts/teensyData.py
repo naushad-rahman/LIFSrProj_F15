@@ -627,7 +627,7 @@ if saveData:
     logFile.write('End Time: ' + str(endTime) + '\n')
     logFile.write('Packets Received: ' + str(packetsRecieved) + '\n')
     logFile.write('Packets Sent: ' + str(packetsSent) + '\n')
-    logFile.write('Packets Missed: ' + str(endTime) + ' (' + str(percentageMissed) + '%)' + '\n')
+    logFile.write('Packets Missed: ' + str(packetsMissed) + ' (' + str(percentageMissed) + '%)' + '\n')
     logFile.close()
 
     # Prompts the user to add a description for the test data and saves it in RecordedData\TestNotes.txt

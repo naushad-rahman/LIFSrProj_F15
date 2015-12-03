@@ -90,3 +90,15 @@ Another HV test.
 ***20151130_113838***
 [Successful experiment]
 Final HV test.
+
+
+***20151203_141005***
+test data. No pmt voltage.
+
+
+***20151203_143557***
+[No notes were included for this test.]
+
+
+***20151203_144429***
+separation insertion test. dec 3 2:44. Separation began about 5 Seconds after data collection began.
