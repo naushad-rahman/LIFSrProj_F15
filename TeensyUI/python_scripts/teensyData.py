@@ -383,28 +383,6 @@ endTime = 0L;
 sample_detected = False
 high_start = -1
 
-#ignore this. It's just for testing
-def serialThreadRun(times):
-    ## Set global precedence to previously defined values
-    global firstRun
-    global startBtnClicked
-    global recieved_data
-    inputBytes = []
-    while (times > 0):
-        inputBytes = teensySerialData.read(size = 6)
-        if (firstRun == True):
-            ## Only run once to ensure buffer is completely flushed
-            firstRun = False
-            teensySerialData.flushInput()
-            continue
-        #Bytes read in and stored in a char array of size six
-        recieved_data.append(inputBytes)
-        times -= 1
-
-# import cProfile
-# import re
-# cProfile.run('serialThreadRun("100")')
-        
 class serialReadThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
