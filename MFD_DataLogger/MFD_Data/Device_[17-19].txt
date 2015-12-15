@@ -1,0 +1,16 @@
+Device Number: 					17-19
+Date: 						11/28/15
+Template Status (Cleanliness/Usage): 		Mukul's
+Reservoir Glass Color/Type: 			Blue
+Time Imprinting in Oven: 			20
+Time Flattening in Oven: 			16
+Temperature of Oven1 (Hotter Oven): 		138
+Temperature of Oven2 (Colder Oven): 		110
+Time Cooling - Flattening: 			40
+Time Cooling - Imprinting: 			40
+Time in Oven Bonding: 				28
+Time Cooling after Final Bonding: 		60+
+MFD Status: 					Fail
+Initials: 					bw
+
+Notes:	The templates have been failing us as we have recently discovered. We believe that the thick walls on the template walls have been contributing to electrolysis and have been preventing our progress as a whole. In order to prevent this, check to make sure that the templates have been etched correctly!!!

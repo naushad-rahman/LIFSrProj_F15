@@ -1,0 +1,17 @@
+Device Number: 					21
+Date: 						12/09/15
+Template Status (Cleanliness/Usage): 		Mukul's
+Reservoir Glass Color/Type: 			Blue
+Time Imprinting in Oven: 			27
+Time Flattening in Oven: 			17
+Temperature of Oven1 (Hotter Oven): 		138
+Temperature of Oven2 (Colder Oven): 		110
+Time Cooling - Flattening: 			30
+Time Cooling - Imprinting: 			40
+Time in Oven Bonding: 				35
+Time Cooling after Final Bonding: 		40
+MFD Status: 					SUCCESS - Best Yet
+Initials: 					bw
+
+
+Note: This was the best device yet. 27 Minutes is the ideal time for imprinting. Also, Mukul's templates are far superior to the ones we started the semester using. THe walls of the channel were much sharper. I've found that less pressure on the impression with slightly more time (27 minutes rather than the original 17) works much better for a clear impression. Also, less pressure results in the templates lasting longer. For the final bonding, make sure that pressure is evenly distributed around the device. If there are any unbonded areas, just put it back into the oven with the clamps on the leaks. 

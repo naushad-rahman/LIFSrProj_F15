@@ -1,0 +1,16 @@
+Device Number: 					20
+Date: 						12/08/15
+Template Status (Cleanliness/Usage): 		Mukul's - Good Channels
+Reservoir Glass Color/Type: 			Blue
+Time Imprinting in Oven: 			27
+Time Flattening in Oven: 			17
+Temperature of Oven1 (Hotter Oven): 		138
+Temperature of Oven2 (Colder Oven): 		110
+Time Cooling - Flattening: 			40
+Time Cooling - Imprinting: 			40
+Time in Oven Bonding: 				35
+Time Cooling after Final Bonding: 		60+
+MFD Status: 					Great flow. Slight leaking
+Initials: 					bw
+
+Notes:	27 minutes imprinting resulted in a much cleaner impression. However, I think that I should have put the device back into the oven for more thermal bonding as there were a few leaks near the reservoirs. The flow was excellent though - better than any other devices yet.
