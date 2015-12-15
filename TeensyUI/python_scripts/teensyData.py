@@ -20,65 +20,164 @@ from collections import deque
 import pprint                       #For pretty debug printing
 import binascii
 import struct
+import ufluidics_dsp as udsp        #For DSP processing
+import sys
+import getopt
+
+def usage():
+    print("The following optional tags are available for use from the command line:")
+    print("-h / --help          Displays this usage information.")
+    print("-f / --filter        Enables realtime filtering (disabled by default).")
+    print("-n / --nosave        Disables data saving, including the logfile (enabled by default). Also")
+    print("                     turns off the window that regraphs data after the first one is closed,")
+    print("                     since it reads from the savefile.")
+
+#determines if data will undergo realtime filtering (True) or not (False).
+filterData = False
+#determines if data will be saved (True) or not (False). Also determines of the data will be regraphed in the
+#second window after the first one is closed, since it reads from the savefile. This might be worth changing later.
+saveData = True
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "hfn", ["help", "filter", "nosave"])
+except getopt.GetoptError as e:
+    usage()
+    sys.exit()
+for opt, arg in opts:
+    if opt in ("-h", "--help"):
+        usage()
+        sys.exit()
+    elif opt in ("-f", "--filter"):
+        filterData = True
+    elif opt in ("-n", "--nosave"):
+        saveData = False
+
+## Initialize the container for our voltage values read in from the teensy
+## IMPORTANT NOTE: The com port value needs to be updated if the com value
+## changes. It's the same number that appears on the bottom right corner of the
+## window containing the TeensyDataWrite.ino code
+## If someone forgot to change the com port here, this will catch the error and
+## ask the user for the correct port. Then you should come in here and change this value.
+portName = "COM7"
+portOpen = False
+validInput = False
+while not portOpen:
+    try:
+        teensySerialData = serial.Serial(portName, 115200)
+        #port successfully opened
+        portOpen = True
+        if validInput:
+            print("Please go into the code and update the com port number there.")
+    except serial.serialutil.SerialException as e:  # Port failed to open
+        print e
+        while not validInput:
+            port = raw_input("Try a different port? (n/port number): ")
+            if port[0] == 'n':
+                #check if the user wants to exit
+                sys.exit()
+            elif port[:4].upper() == "COM ":
+                # check if the user entered "COM #"
+                portName = port[:3].upper() + port[4:]
+                validInput = True
+            elif port[:3].upper() == "COM":
+                # check if the user entered "COM#"
+                portName = port.upper()
+                validInput = True
+            else:
+                # The user entered a number or an invalid input
+                try:
+                    # check if the input was a number
+                    portNum = int(port)
+                except ValueError:
+                    # bad input, try again.
+                    print("Invalid input.")
+                else:
+                    # user entered a new port number. Now loop back and see if it works!
+                    portName = "COM" + str(portNum)
+                    validInput = True
 
 ## Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
 
 ## Define a top-level widget to hold everything (a window)
 w = QtGui.QWidget()
-w.resize(1000,600)
+w.resize(1000, 600)
 w.setWindowTitle('Voltage Plots')
 
 startBtnClicked = False
+calBtnClicked = False
+
+csvFile = None
+logFile = None
 
 ## This function contains the behavior we want to see when the start button is clicked
 def startButtonClicked():
     global startBtnClicked
     global startBtn
+    global saveData
+    global csvFile
+    global logFile
     if (startBtnClicked == False):
         teensySerialData.flushInput() #empty serial buffer for input from the teensy
         startBtnClicked = True
         startBtn.setText('Stop')
+        
+        ## File is saved to Documents/IPython Notebooks/RecordedData
+        i = datetime.now()
+        timeString = str(i.year) + "-" + str(i.month) + "-" + str(i.day) + " at " + \
+            str(i.hour) + ":" + str(i.minute) + ":" + str(i.second)
+        if saveData:
+            csvFile = open(folderName + fileTime + '.csv', 'a')
+            csvFile.write("# Data from " + timeString + '\n')
+            csvFile.write("Timestamp,PMT\n")
+
+            ## File for logging
+            logFile = open(folderName + fileTime + '.log', 'a')
+            logFile.write('# Log from ' + timeString + '\n\n')
+            logFile.write('# DSP Processing Report:\n')
+            logFile.write(udsp.PROCESSING_TYPE)
+            logFile.write('\n# Event: timestamp (from teensy)\n')
 
         #start threads
         serial_read_thread = serialReadThread()
         serial_read_thread.daemon = True
         serial_read_thread.start()
-        # data_converter_thread = dataConverterThread()
-        # data_converter_thread.daemon = True
-        # data_converter_thread.start()
         time_data_thread = timeDataThread()
         time_data_thread.daemon = True
         time_data_thread.start()
-        pmt_data_thread = pmtDataThread()
-        pmt_data_thread.daemon = True
-        pmt_data_thread.start()
-        pmt_graph_thread = pmtGraphThread()
-        pmt_graph_thread.daemon = True
-        pmt_graph_thread.start()
-        data_write_thread = dataWriteThread()
-        data_write_thread.daemon = True
-        data_write_thread.start()
-        #graphing_thread = graphingThread()
-        #graphing_thread.daemon = True
-        #graphing_thread.start()
+        if (filterData):
+            pmt_data_thread = pmtDataThread()
+            pmt_data_thread.daemon = True
+            pmt_data_thread.start()
+        else:
+            pmt_data_thread = pmtDataThread_LogOnly()
+            pmt_data_thread.daemon = True
+            pmt_data_thread.start()
+        if saveData:
+            data_write_thread = dataWriteThread()
+            data_write_thread.daemon = True
+            data_write_thread.start()
+            
+        saveDataChk.setDisabled(True)
 
     elif (startBtnClicked == True):
         startBtnClicked = False
         startBtn.setText('Start')
+        startBtn.setDisabled(True)
 
 ## Below at the end of the update function we check the value of quitBtnClicked
 def quitButtonClicked():
     ## Close the file and close the window.
     if (startBtnClicked == False):  ##don't quit while still running.
-        f.close()
         w.close()
-
-        #showNow = True
-        data = np.loadtxt(open('RecordedData\\' + fileName,"rb"),delimiter=",",skiprows=2)
-        numSamples2 = data.shape[0]
-        if(len(data) > 0):
-            pmtCurve2.setData(data[:,1])
+        
+        if saveData:
+            csvFile.close()
+            #showNow = True
+            data = np.loadtxt(open(folderName + fileTime + '.csv' ,"rb"),delimiter=",",skiprows=2)
+            numSamples2 = data.shape[0]
+            if(len(data) > 0):
+                pmtCurve2.setData(data[:,1])
 
 def quitButtonClicked2():
     w2.close()
@@ -86,19 +185,38 @@ def quitButtonClicked2():
 ## Buttons to control the High Voltage
 def HVoffButtonClicked():
     teensySerialData.write('0')
+    if saveData:
+        logFile.write('High Voltage Off: ' + str(timeElapsed) + '\n')
     print("HV Off")
 
 def HVonButtonClicked():
     teensySerialData.write('1')
+    if saveData:
+        logFile.write('High Voltage On: ' + str(timeElapsed) + '\n')
     print("HV On")
 
 def insertionButtonClicked():
     teensySerialData.write('3')
+    if saveData:
+        logFile.write('Sample Insertion: ' + str(timeElapsed) + '\n')
     print("Insertion")
 
 def separationButtonClicked():
     teensySerialData.write('2')
+    if saveData:
+        logFile.write('Sample Separation: ' + str(timeElapsed) + '\n')
     print("Separation")
+
+## Button for Calibration
+def calibrateButtonClicked():
+    global calBtnClicked
+    if saveData:
+        logFile.write('Signal Calibration: ' + str(timeElapsed) + '\n')
+    calBtnClicked = True
+
+def saveDataCheckboxClicked():
+    global saveData
+    saveData = saveDataChk.isChecked()
 
 #Start Recording in Widget
 ## Create widgets to be placed inside
@@ -124,6 +242,14 @@ insBtn.setToolTip('Click to start insertion (#3)')
 sepBtn = QtGui.QPushButton("Separation")
 sepBtn.setToolTip('Click to start separation (#2)')
 
+calBtn = QtGui.QPushButton("Calibrate")
+calBtn.setToolTip('Clock to callibrate signal sample')
+
+# Checkbox to determine if incoming data should be saved
+saveDataChk = QtGui.QCheckBox("Save data")
+saveDataChk.setChecked(saveData)
+saveDataChk.stateChanged.connect(saveDataCheckboxClicked)
+
 ## Functions in parantheses are to be called when buttons are clicked
 startBtn.clicked.connect(startButtonClicked)
 quitBtn.clicked.connect(quitButtonClicked)
@@ -132,40 +258,41 @@ HVonBtn.clicked.connect(HVonButtonClicked)
 HVoffBtn.clicked.connect(HVoffButtonClicked)
 insBtn.clicked.connect(insertionButtonClicked)
 sepBtn.clicked.connect(separationButtonClicked)
+calBtn.clicked.connect(calibrateButtonClicked)
 
 ## xSamples is the maximum amount of samples we want graphed at a time
 xSamples = 30000
 
-## To plot the entire csv file after the experiment.
-## Plots at the click of the quit button
+if saveData:
+    ## To plot the entire csv file after the experiment.
+    ## Plots at the click of the quit button
 
-## Define a top-level widget to hold everything
-w2 = QtGui.QWidget()
-w2.resize(1000,600)
-w2.setWindowTitle('Voltage Plot')
+    ## Define a top-level widget to hold everything
+    w2 = QtGui.QWidget()
+    w2.resize(1000,600)
+    w2.setWindowTitle('Voltage Plot')
 
-#Create Plot Widgets
-pmtPlotWidget2 = pg.PlotWidget()
-pmtPlotWidget2.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
-pmtPlotWidget2.setYRange(0, 4096)
-pmtPlotWidget2.setLabel('top', text = "PMT")
-pmtCurve2 = pmtPlotWidget2.plot()
+    #Create Plot Widgets
+    pmtPlotWidget2 = pg.PlotWidget()
+    pmtPlotWidget2.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+    pmtPlotWidget2.setYRange(0, 4096)
+    pmtPlotWidget2.setLabel('top', text = "PMT")
+    pmtCurve2 = pmtPlotWidget2.plot()
 
-lowerBoundValue2 = 0
-upperBoundValue2 = xSamples
-pmtPlotWidget2.setXRange(0, upperBoundValue2)
+    lowerBoundValue2 = 0
+    upperBoundValue2 = xSamples
+    pmtPlotWidget2.setXRange(0, upperBoundValue2)
 
-## Create a grid layout to manage the widgets size and position
-layout2 = QtGui.QGridLayout()
-w2.setLayout(layout2)
+    ## Create a grid layout to manage the widgets size and position
+    layout2 = QtGui.QGridLayout()
+    w2.setLayout(layout2)
 
-## Add widgets to the layout in their proper positions
-layout2.addWidget(quitBtn2, 0, 0)
-layout2.addWidget(pmtPlotWidget2, 1, 2, 1, 1)  # wGL goes on right side, spanning 3 rows
+    ## Add widgets to the layout in their proper positions
+    layout2.addWidget(quitBtn2, 0, 0)
+    layout2.addWidget(pmtPlotWidget2, 1, 2, 1, 1)  # wGL goes on right side, spanning 3 rows
 
-## Display the widget as a new window
-w2.show()
-
+    ## Display the widget as a new window
+    w2.show()
 
 ## Create plot widget for PMT signal input
 ## For real time plotting
@@ -173,6 +300,15 @@ pmtPlotWidget = pg.PlotWidget()
 pmtPlotWidget.setYRange(0, 4096)
 pmtPlotWidget.setXRange(0, xSamples)
 pmtPlotWidget.setLabel('top', text = "PMT") #Title to appear at top of widget
+
+if (filterData):
+    # Create and initialize plot widget for processed signals
+    PROCPLOT_TITLE = "Filtered Processed PMT Data"
+    procplot_widget = pg.PlotWidget()
+    procplot_widget.setYRange(0, 1)
+    procplot_widget.setXRange(0, xSamples)
+    procplot_widget.setLabel('top', text=PROCPLOT_TITLE)
+    #procplot_curve = procplot_widget.plot() # Check with this line it may be done later in code
 
 ## Create a grid layout to manage the widgets size and position
 ## The grid layout allows us to place a widget in a given column and row
@@ -182,13 +318,17 @@ w.setLayout(layout)
 ## Add widgets to the layout in their proper positions
 ## The first number in parantheses is the row, the second is the column
 layout.addWidget(quitBtn, 0, 0)
-layout.addWidget(startBtn, 2, 0)
+layout.addWidget(startBtn, 3, 0)
 layout.addWidget(HVonBtn, 0, 2)
-layout.addWidget(insBtn, 2, 2)
-layout.addWidget(sepBtn, 3, 2)
-layout.addWidget(HVoffBtn, 4, 2)
+layout.addWidget(insBtn, 3, 2)
+layout.addWidget(sepBtn, 4, 2)
+layout.addWidget(HVoffBtn, 5, 2)
+layout.addWidget(calBtn, 6, 2)
+layout.addWidget(saveDataChk, 3, 1)
 
 layout.addWidget(pmtPlotWidget, 1, 1)
+if (filterData):
+    layout.addWidget(procplot_widget, 2, 1)
 
 ## Display the widget as a new window
 w.show()
@@ -200,10 +340,6 @@ w.show()
 ## These values will reset when they reach the value of xSamples
 xRightIndex = 0
 xLeftIndex = 0
-
-## These arrays will hold the unplotted voltage values from the pmt
-## and the peak detector until we are able to update the plot
-pmtData = []
 
 ## Used to determine how often we plot a range of values
 graphCount = 0
@@ -217,60 +353,36 @@ timeElapsedPrev = 0L
 firstRun = True
 
 ## Create new file, with the name being today's date and current time and write headings to file in CSV format
-i = datetime.now()
-#fileName = str(i.year) + str(i.month) + str(i.day) + "_" + str(i.hour) + str(i.minute) + str(i.second) + ".csv"
-fileName = strftime("%Y%m%d_%H%M%S.csv")
-
-## File is saved to Documents/IPython Notebooks/RecordedData
-f = open('RecordedData\\' + fileName, 'a')
-f.write("#Data from " + str(i.year) + "-" + str(i.month) + "-" + str(i.day) + " at " + str(i.hour) + ":" + str(i.minute) + ":" + str(i.second) + '\n')
-f.write("Timestamp,PMT\n")
-
-## Initialize the container for our voltage values read in from the teensy
-## IMPORTANT NOTE: The com port value needs to be updated if the com value
-## changes. It's the same number that appears on the bottom right corner of the
-## window containing the TeensyDataWrite.ino code
-
-teensySerialData = serial.Serial("COM4", 115200)
+fileTime = strftime("%Y%m%d_%H%M%S")
+folderName = 'RecordedData\\'
 
 #change this to match the value in the Teensy's "timer0.begin(SampleVoltage, 110);" line
 usecBetweenPackets = 110.0
 
 packetsRecieved = 0L
 
+# Data structures for data from Teensy
 recieved_data = deque()
 time_data = deque()
 pmt_data = deque()
 time_write = deque()
 pmt_write = deque()
-pmt_graph = deque()
 graph_sema = threading.Semaphore()
 
+filter_block = []
+time_block = []
+pmt_filtered = []
+pmt_thresholded = []
+pmt_calibrate = []
+
+pmt_baseline = 0.0
+pmt_threshold = 100.0 #default threshold value
 startTime = 0L;
 endTime = 0L;
 
-#ignore this. It's just for testing
-def serialThreadRun(times):
-    ## Set global precedence to previously defined values
-    global firstRun
-    global startBtnClicked
-    global recieved_data
-    inputBytes = []
-    while (times > 0):
-        inputBytes = teensySerialData.read(size = 6)
-        if (firstRun == True):
-            ## Only run once to ensure buffer is completely flushed
-            firstRun = False
-            teensySerialData.flushInput()
-            continue
-        #Bytes read in and stored in a char array of size six
-        recieved_data.append(inputBytes)
-        times -= 1
+sample_detected = False
+high_start = -1
 
-# import cProfile
-# import re
-# cProfile.run('serialThreadRun("100")')
-        
 class serialReadThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -294,8 +406,11 @@ class serialReadThread (threading.Thread):
                 teensySerialData.flushInput()
                 continue
             #Bytes read in and stored in a char array of size six
-            time_data.append(time_value)
-            pmt_data.append(adc_value)
+            time_data.append(time_value) #Append time value to time_data deque
+            time_block.append(time_value) #Extend time value to time_block to report detections
+            if saveData:
+                pmt_write.append(str(adc_value)) #Append string adc value to pmt_write deque
+            pmt_data.append(adc_value) #Append adc value to pmt_data deque
             ##print out the recieved data in hex format for testing
             # out = ""
             # for d in struct.unpack(">LHH", teensySerialData.read(8)):
@@ -311,8 +426,9 @@ class timeDataThread (threading.Thread):
         global startBtnClicked
         global startTime
         global time_data
+        global packetsRecieved
         while (startBtnClicked):
-            while(not len(time_data) > 0):
+            while(not time_data):
                 pass
             timeElapsedPrev = timeElapsed
             timeElapsed = time_data.popleft()
@@ -321,58 +437,98 @@ class timeDataThread (threading.Thread):
                 timeElapsedPrev = timeElapsed
 
             # We'll add all our values to this string until we're ready to exit the loop, at which point it will be written to a file
-            time_write.append(str(timeElapsed))
-            
-            #print(str(timeElapsed))
+            if saveData:
+                time_write.append(str(timeElapsed))
 
             ## This difference calucalted in the if statement is the amount of time in microseconds since the last value
             ## we read in and wrote to a file. If this value is significantly greater than 100, we know we have missed some
             ## values, probably as a result of the buffer filling up and scrapping old values to make room for new values.
             ## The number we print out will be the approximate number of values we failed to read in.
             ## This is useful to determine if your code is running too slow
-            #if (timeElapsed - timeElapsedPrev > 8000):
-            #    print(str((timeElapsed-timeElapsedPrev)/7400))
             if (timeElapsed - timeElapsedPrev > (usecBetweenPackets*1.5)):
                 print("missed time: " + str((timeElapsed-timeElapsedPrev)/usecBetweenPackets))
+                if saveData:
+                    logFile.write('Missed Sample: ' + str(timeElapsed) + '\n')
+            
+            #keep track of packets recieved so we know if we missed any
+            packetsRecieved += 1
+
+##This thread takes the pmt data from the pmt_data deque, filters it (to be implemented) and adds the filtered data to pmt_graph.
+class pmtDataThread_LogOnly (threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(self):
+        global startBtnClicked
+        global pmt_data
+        global pmt_filtered
+        global xRightIndex
+        while (startBtnClicked):
+            while(not len(pmt_data) >= 2):
+                pass
+            numData = pmt_data.popleft()
+            #numData = numData*3.3/1024
+            #numDataRounded = numData #- numData%.001 #Round voltage value to 3 decimal points
+            graph_sema.acquire()
+            pmt_filtered.append(numData)
+            graph_sema.release()
 
 class pmtDataThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
+        global calBtnClicked
         global pmt_data
+        global filter_block
+        global time_block
+        global pmt_filtered
+        global pmt_calibrate
+        global pmt_baseline
+        global pmt_threshold
+        global sample_detected
+        global high_start
         while (startBtnClicked):
-            while(not len(pmt_data) >= 2):
+            while(not pmt_data):
                 pass
-            numData = pmt_data.popleft()
-            numData = numData*3.3/1024
-            numDataRounded = numData - numData%.001 #Round voltage value to 3 decimal points
-            pmt_graph.append(numDataRounded)
-            pmt_write.append(str(numDataRounded))
-
-class pmtGraphThread (threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-    def run(self):
-        global xRightIndex
-        global pmtData
-        global startBtnClicked
-
-        while (startBtnClicked):
-            while(not pmt_graph):
-                pass
-            numDataRounded = pmt_graph.popleft()
-            graph_sema.acquire()
-            pmtData.append(numDataRounded)
-            xRightIndex = xRightIndex + 1
-            graph_sema.release()
+            
+            filter_block.append(pmt_data.popleft())
+            
+            if len(filter_block) >= udsp.FILTBLK_SIZE:
+                graph_sema.acquire()
+                filter_block = udsp.filter_signal(filter_block)
+                if calBtnClicked:
+                    pmt_calibrate.extend(filter_block)
+                filter_block[:] = [x - pmt_baseline for x in filter_block]
+                pmt_filtered.extend(filter_block)
+                filter_block[:] = [x > pmt_threshold for x in filter_block]
+                filter_block = udsp.filter_threshold(filter_block)
+                pmt_thresholded.extend(filter_block)
+                detections, high_start = udsp.detect_sample(filter_block, time_block, high_start)
+                filter_block = []
+                time_block = []
+                graph_sema.release()
+                
+                while detections:
+                    peak, width = detections.pop()
+                    if saveData:
+                        logFile.write("Sample Detected: " + str(peak))
+                    print("Sample Detected: " + str(peak))
+                    if saveData:
+                        logFile.write("Sample Width: " + str(width))
+                    print("Sample Width: " + str(width))
+            
+            if calBtnClicked and pmt_calibrate:
+                if len(pmt_calibrate) >= udsp.CALIBRATION_WIDTH:
+                    pmt_baseline, pmt_threshold = udsp.calibrate(pmt_calibrate)
+                    pmt_calibrate = []
+                    calBtnClicked = False
+                    print "PMT Baseline:", pmt_baseline, "PMT Threshold:", pmt_threshold
 
 class dataWriteThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
     def run(self):
         global startBtnClicked
-        global packetsRecieved
 
         while (startBtnClicked):
             while(not time_write or not pmt_write):
@@ -381,50 +537,49 @@ class dataWriteThread (threading.Thread):
             pmtNumDataRounded = pmt_write.popleft()
             
             stringToWrite = localTimeElapsed + "," + pmtNumDataRounded + '\n'
-            f.write(stringToWrite)
-            packetsRecieved += 1
+            csvFile.write(stringToWrite)
 
-#class graphingThread (threading.Thread):   #Use this instead of "def update():" to turn it back into a thread.
-#    def __init__(self):                    #But it appears that this can't be a seperate thread because of Qt stuff
-#        threading.Thread.__init__(self)
-#    def run(self):
 def update():
     global xLeftIndex
     global xRightIndex
-    global pmtData
+    global pmt_filtered
+    global pmt_thresholded
     global xSamples
-    #global startBtnClicked
 
-    #while (startBtnClicked):#used when this was a thread
-
-    if (len(pmtData) >= 100): #We will plot new values once we have this many values to plot
+    if (len(pmt_filtered) > 0): #We will plot new values once we have this many values to plot
         if (xLeftIndex == 0):
             ## Remove all PlotDataItems from the PlotWidgets. This will effectively reset the graphs (approximately every 30000 samples)
             pmtPlotWidget.clear()
-
+            if (filterData):
+                procplot_widget.clear()
+                       
         ## pmtCurve are of the PlotDataItem type and are added to the PlotWidget.
         ## Documentation for these types can be found on pyqtgraph's website
-
+        
         graph_sema.acquire()
+        
+        xRightIndex += len(pmt_filtered)
 
         pmtCurve = pmtPlotWidget.plot()
-        xRange = range(xLeftIndex,xRightIndex)
-        pmtCurve.setData(xRange, pmtData)
+        xRange = range(xLeftIndex, xRightIndex)
+        pmtCurve.setData(xRange, pmt_filtered)
+        
+        if (filterData):
+            procplot_curve = procplot_widget.plot()
+            procplot_curve.setData(xRange, pmt_thresholded)
+            pmt_thresholded = []
+            
 
         ## Now that we've plotting the values, we no longer need these arrays to store them
-        pmtData = []
+        pmt_filtered = []
+        
         xLeftIndex = xRightIndex
         graphCount = 0
         if(xRightIndex >= xSamples):
             xRightIndex = 0
             xLeftIndex = 0
-            pmtData = []
-
+        
         graph_sema.release()
-#    if (startBtnClicked):
-#        print("recieved_data: " + str(recieved_data.qsize()) + "    time_data:" + str(time_data.qsize()) +
-#        "    pmt_data:" + str(pmt_data.qsize()) + "    time_write:" + str(time_write.qsize()) +
-#        "    pmt_write:" + str(pmt_write.qsize()) + "    pmt_graph:" + str(pmt_graph.qsize())
 
 ## Run update function in response to a timer
 timer = QtCore.QTimer()
@@ -438,150 +593,161 @@ app.exec_()
 endTime = timeElapsedPrev
 packetsSent = (endTime - startTime) / usecBetweenPackets
 packetsMissed = packetsSent - packetsRecieved
-percentageMissed = (float(packetsMissed) / float(packetsSent)) * 100.0
+if packetsSent > 0:
+    percentageMissed = (float(packetsMissed) / float(packetsSent)) * 100.0
+else:
+    percentageMissed = 0
 print("start: " + str(startTime) + "  endTime: " + str(endTime) + "  received: " + str(packetsRecieved) + '\n')
 print("You missed " + str(packetsMissed) + " out of " + str(packetsSent) + " packets sent. (" + str(percentageMissed) + "%)")
 
-# Prompts the user to add a description for the test data and saves it in RecordedData\TestNotes.txt
-## Tkinter is used to create this window
-testNotes = Tk()
+if saveData:
+    logFile.write('Start Time: ' + str(startTime) + '\n')
+    logFile.write('End Time: ' + str(endTime) + '\n')
+    logFile.write('Packets Received: ' + str(packetsRecieved) + '\n')
+    logFile.write('Packets Sent: ' + str(packetsSent) + '\n')
+    logFile.write('Packets Missed: ' + str(packetsMissed) + ' (' + str(percentageMissed) + '%)' + '\n')
+    logFile.close()
 
-## The label telling the user what to do
-l = Label(testNotes, text = "Describe your experiment and results here.")
-l.pack(padx = 10, pady = 5, anchor = W)
+    # Prompts the user to add a description for the test data and saves it in RecordedData\TestNotes.txt
+    ## Tkinter is used to create this window
+    testNotes = Tk()
 
-## The textbox where the notes are written
-textBox = Text(testNotes, height = 10, width = 78)
-textBox.pack(padx = 10, pady = 5, anchor = W)
-textBox.focus_set()
+    ## The label telling the user what to do
+    l = Label(testNotes, text = "Describe your experiment and results here.")
+    l.pack(padx = 10, pady = 5, anchor = W)
 
-## textbox for microfluidic device number
-inputBoxFrame = Frame(testNotes)
-inputBoxFrame.pack(padx = 10, anchor = W)
-inputBoxLeftFrame = Frame(testNotes)
-inputBoxLeftFrame.pack(in_ = inputBoxFrame, padx = 10, side = LEFT, anchor = W)
-inputBoxRightFrame = Frame(testNotes)
-inputBoxRightFrame.pack(in_ = inputBoxFrame, padx = 10, side = LEFT, anchor = W)
-inputBoxFrameL0 = Frame(testNotes, pady = 2)
-inputBoxFrameL0.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
-inputBoxFrameR0 = Frame(testNotes, pady = 2)
-inputBoxFrameR0.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
-inputBoxFrameL1 = Frame(testNotes, pady = 2)
-inputBoxFrameL1.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
-inputBoxFrameR1 = Frame(testNotes, pady = 2)
-inputBoxFrameR1.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
-inputBoxFrameL2 = Frame(testNotes, pady = 2)
-inputBoxFrameL2.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
-inputBoxFrameR2 = Frame(testNotes, pady = 2)
-inputBoxFrameR2.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
-inputBoxFrameL3 = Frame(testNotes, pady = 2)
-inputBoxFrameL3.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
-inputBoxFrameR3 = Frame(testNotes, pady = 2)
-inputBoxFrameR3.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
-inputBoxFrameL4 = Frame(testNotes, pady = 2)
-inputBoxFrameL4.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
-inputBoxFrameR4 = Frame(testNotes, pady = 2)
-inputBoxFrameR4.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
+    ## The textbox where the notes are written
+    textBox = Text(testNotes, height = 10, width = 78)
+    textBox.pack(padx = 10, pady = 5, anchor = W)
+    textBox.focus_set()
 
-deviceNumLabel = Label(testNotes, text = "Microfluidic device number: ")
-deviceNumEntry = Entry(testNotes)
-deviceNumUsedLabel = Label(testNotes, text = "Times device has been used: ")
-deviceNumUsedEntry = Entry(testNotes)
-laserPosLabel = Label(testNotes, text = "Laser position: ")
-laserPosEntry = Entry(testNotes)
-analogGainLabel = Label(testNotes, text = "Analog gain: ")
-analogGainEntry = Entry(testNotes)
-laserVoltLabel = Label(testNotes, text = "Laser voltage: ")
-laserVoltEntry = Entry(testNotes)
-pmtVoltLabel = Label(testNotes, text = "PMT control voltage: ")
-pmtVoltEntry = Entry(testNotes)
-hvSettingsLabel = Label(testNotes, text = "HV settings: ")
-hvSettingsEntry = Entry(testNotes)
-buffSolLabel = Label(testNotes, text = "Buffer solution used: ")
-buffSolEntry = Entry(testNotes)
-fluorophoreLabel = Label(testNotes, text = "Fluorophore used: ")
-fluorophoreEntry = Entry(testNotes)
-fluorophoreConLabel = Label(testNotes, text = "Fluorophore concentration: ")
-fluorophoreConEntry = Entry(testNotes)
+    ## textbox for microfluidic device number
+    inputBoxFrame = Frame(testNotes)
+    inputBoxFrame.pack(padx = 10, anchor = W)
+    inputBoxLeftFrame = Frame(testNotes)
+    inputBoxLeftFrame.pack(in_ = inputBoxFrame, padx = 10, side = LEFT, anchor = W)
+    inputBoxRightFrame = Frame(testNotes)
+    inputBoxRightFrame.pack(in_ = inputBoxFrame, padx = 10, side = LEFT, anchor = W)
+    inputBoxFrameL0 = Frame(testNotes, pady = 2)
+    inputBoxFrameL0.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
+    inputBoxFrameR0 = Frame(testNotes, pady = 2)
+    inputBoxFrameR0.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
+    inputBoxFrameL1 = Frame(testNotes, pady = 2)
+    inputBoxFrameL1.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
+    inputBoxFrameR1 = Frame(testNotes, pady = 2)
+    inputBoxFrameR1.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
+    inputBoxFrameL2 = Frame(testNotes, pady = 2)
+    inputBoxFrameL2.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
+    inputBoxFrameR2 = Frame(testNotes, pady = 2)
+    inputBoxFrameR2.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
+    inputBoxFrameL3 = Frame(testNotes, pady = 2)
+    inputBoxFrameL3.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
+    inputBoxFrameR3 = Frame(testNotes, pady = 2)
+    inputBoxFrameR3.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
+    inputBoxFrameL4 = Frame(testNotes, pady = 2)
+    inputBoxFrameL4.pack(in_ = inputBoxLeftFrame, padx = 10, anchor = W)
+    inputBoxFrameR4 = Frame(testNotes, pady = 2)
+    inputBoxFrameR4.pack(in_ = inputBoxRightFrame, padx = 10, anchor = W)
 
-deviceNumLabel.pack(in_ = inputBoxFrameL0, side = LEFT)
-deviceNumEntry.pack(in_ = inputBoxFrameL0, side = LEFT)
-deviceNumUsedLabel.pack(in_ = inputBoxFrameR0, side = LEFT)
-deviceNumUsedEntry.pack(in_ = inputBoxFrameR0, side = LEFT)
-laserPosLabel.pack(in_ = inputBoxFrameL1, side = LEFT)
-laserPosEntry.pack(in_ = inputBoxFrameL1, side = LEFT)
-analogGainLabel.pack(in_ = inputBoxFrameR1, side = LEFT)
-analogGainEntry.pack(in_ = inputBoxFrameR1, side = LEFT)
-laserVoltLabel.pack(in_ = inputBoxFrameL2, side = LEFT)
-laserVoltEntry.pack(in_ = inputBoxFrameL2, side = LEFT)
-pmtVoltLabel.pack(in_ = inputBoxFrameR2, side = LEFT)
-pmtVoltEntry.pack(in_ = inputBoxFrameR2, side = LEFT)
-hvSettingsLabel.pack(in_ = inputBoxFrameL3, side = LEFT)
-hvSettingsEntry.pack(in_ = inputBoxFrameL3, side = LEFT)
-buffSolLabel.pack(in_ = inputBoxFrameR3, side = LEFT)
-buffSolEntry.pack(in_ = inputBoxFrameR3, side = LEFT)
-fluorophoreLabel.pack(in_ = inputBoxFrameL4, side = LEFT)
-fluorophoreEntry.pack(in_ = inputBoxFrameL4, side = LEFT)
-fluorophoreConLabel.pack(in_ = inputBoxFrameR4, side = LEFT)
-fluorophoreConEntry.pack(in_ = inputBoxFrameR4, side = LEFT)
+    deviceNumLabel = Label(testNotes, text = "Microfluidic device number: ")
+    deviceNumEntry = Entry(testNotes)
+    deviceNumUsedLabel = Label(testNotes, text = "Times device has been used: ")
+    deviceNumUsedEntry = Entry(testNotes)
+    laserPosLabel = Label(testNotes, text = "Laser position: ")
+    laserPosEntry = Entry(testNotes)
+    analogGainLabel = Label(testNotes, text = "Analog gain: ")
+    analogGainEntry = Entry(testNotes)
+    laserVoltLabel = Label(testNotes, text = "Laser voltage: ")
+    laserVoltEntry = Entry(testNotes)
+    pmtVoltLabel = Label(testNotes, text = "PMT control voltage: ")
+    pmtVoltEntry = Entry(testNotes)
+    hvSettingsLabel = Label(testNotes, text = "HV settings: ")
+    hvSettingsEntry = Entry(testNotes)
+    buffSolLabel = Label(testNotes, text = "Buffer solution used: ")
+    buffSolEntry = Entry(testNotes)
+    fluorophoreLabel = Label(testNotes, text = "Fluorophore used: ")
+    fluorophoreEntry = Entry(testNotes)
+    fluorophoreConLabel = Label(testNotes, text = "Fluorophore concentration: ")
+    fluorophoreConEntry = Entry(testNotes)
 
-## Checkboxes are used to add some tags to the data
-checks = Frame(testNotes)
-checks.pack()
+    deviceNumLabel.pack(in_ = inputBoxFrameL0, side = LEFT)
+    deviceNumEntry.pack(in_ = inputBoxFrameL0, side = LEFT)
+    deviceNumUsedLabel.pack(in_ = inputBoxFrameR0, side = LEFT)
+    deviceNumUsedEntry.pack(in_ = inputBoxFrameR0, side = LEFT)
+    laserPosLabel.pack(in_ = inputBoxFrameL1, side = LEFT)
+    laserPosEntry.pack(in_ = inputBoxFrameL1, side = LEFT)
+    analogGainLabel.pack(in_ = inputBoxFrameR1, side = LEFT)
+    analogGainEntry.pack(in_ = inputBoxFrameR1, side = LEFT)
+    laserVoltLabel.pack(in_ = inputBoxFrameL2, side = LEFT)
+    laserVoltEntry.pack(in_ = inputBoxFrameL2, side = LEFT)
+    pmtVoltLabel.pack(in_ = inputBoxFrameR2, side = LEFT)
+    pmtVoltEntry.pack(in_ = inputBoxFrameR2, side = LEFT)
+    hvSettingsLabel.pack(in_ = inputBoxFrameL3, side = LEFT)
+    hvSettingsEntry.pack(in_ = inputBoxFrameL3, side = LEFT)
+    buffSolLabel.pack(in_ = inputBoxFrameR3, side = LEFT)
+    buffSolEntry.pack(in_ = inputBoxFrameR3, side = LEFT)
+    fluorophoreLabel.pack(in_ = inputBoxFrameL4, side = LEFT)
+    fluorophoreEntry.pack(in_ = inputBoxFrameL4, side = LEFT)
+    fluorophoreConLabel.pack(in_ = inputBoxFrameR4, side = LEFT)
+    fluorophoreConEntry.pack(in_ = inputBoxFrameR4, side = LEFT)
 
-## Variables showing if the boxes are checked (1) or not (0)
-broken = IntVar()
-success = IntVar()
-wrong = IntVar()
+    ## Checkboxes are used to add some tags to the data
+    checks = Frame(testNotes)
+    checks.pack()
 
-## Create the checkboxes
-brokenCheck = Checkbutton(testNotes, text="Equipment failure", variable=broken, onvalue = 1, offvalue = 0)
-successCheck = Checkbutton(testNotes, text="Successful experiment", variable=success, onvalue = 1, offvalue = 0)
-wrongCheck = Checkbutton(testNotes, text="I just don't know what went wrong", variable=wrong, onvalue = 1, offvalue = 0)
-brokenCheck.pack(in_ = checks, side = LEFT, padx = 10)
-successCheck.pack(in_ = checks, side = LEFT, padx = 10)
-wrongCheck.pack(in_ = checks, side = LEFT, padx = 10)
+    ## Variables showing if the boxes are checked (1) or not (0)
+    broken = IntVar()
+    success = IntVar()
+    wrong = IntVar()
 
-## Dictionary for keeping track of tags
-with open('RecordedData\\tags.json', 'r') as fp:
-    checkDict = json.load(fp)
+    ## Create the checkboxes
+    brokenCheck = Checkbutton(testNotes, text="Equipment failure", variable=broken, onvalue = 1, offvalue = 0)
+    successCheck = Checkbutton(testNotes, text="Successful experiment", variable=success, onvalue = 1, offvalue = 0)
+    wrongCheck = Checkbutton(testNotes, text="I just don't know what went wrong", variable=wrong, onvalue = 1, offvalue = 0)
+    brokenCheck.pack(in_ = checks, side = LEFT, padx = 10)
+    successCheck.pack(in_ = checks, side = LEFT, padx = 10)
+    wrongCheck.pack(in_ = checks, side = LEFT, padx = 10)
 
-## This function runs when the submit button is pressed
-def submit():
-    ## save the text in the box
-    text = textBox.get("1.0",'end-1c').strip()
-    deviceNum = deviceNumEntry.get()
-    #deviceNum = filter(str.isdigit, deviceNumEntry.get()).rjust(3, '0')    # Uncomment this line if you don't trust the user to give a number, and change the if statement below. WARNING: Works in Python 2.7, but not Python 3
-    ## If the user didn't write anything, add some text noting that
-    if text == "":
-        text = "[No notes were included for this test.]"
-    ## create new dictionary entry
-    checkDict[fileName] = {"deviceNum": deviceNum, "deviceUsed": deviceNumUsedEntry.get(), "laserPos": laserPosEntry.get(), "analogGain": analogGainEntry.get(),
-        "laserVolt": laserVoltEntry.get(), "pmtVolt": pmtVoltEntry.get(), "hvSettings": hvSettingsEntry.get(), "buffSol": buffSolEntry.get(),
-        "fluorophore": fluorophoreEntry.get(), "fluorophoreCon": fluorophoreConEntry.get(), "success": success.get(), "broken": broken.get(),
-        "wrong": wrong.get(), "text": text}
-    ## add other data to the front of the text for printing
-    if deviceNum != "":     # If the line above was uncommented, change this to 'if deviceNum != "000":'
-        text = "[Microfluidic device #" + deviceNum + "]\n" + text
-    if wrong.get() == 1:
-        text = "[I just don't know what went wrong]\n" + text
-    if broken.get() == 1:
-        text = "[Equipment failure]\n" + text
-    if success.get() == 1:
-        text = "[Successful experiment]\n" + text
-    ## Write to the file
-    fNote = open('RecordedData\\TestNotes.txt','a')
-    fNote.write("\n\n***" + fileName + "***\n" + text + "\n")
-    fNote.close()
-    ## Write tags to .json file
-    with open('RecordedData\\tags.json', 'w') as fp:
-        json.dump(checkDict, fp)
-    ## Close the window
-    testNotes.destroy()
+    ## Dictionary for keeping track of tags
+    with open(folderName + 'tags.json', 'r') as fp:
+        checkDict = json.load(fp)
 
-## The submit button
-submitButton = Button(testNotes, text = "Submit", width = 10, command = submit)
-submitButton.pack(pady = 10)
+    ## This function runs when the submit button is pressed
+    def submit():
+        ## save the text in the box
+        text = textBox.get("1.0",'end-1c').strip()
+        deviceNum = deviceNumEntry.get()
+        #deviceNum = filter(str.isdigit, deviceNumEntry.get()).rjust(3, '0')    # Uncomment this line if you don't trust the user to give a number, and change the if statement below. WARNING: Works in Python 2.7, but not Python 3
+        ## If the user didn't write anything, add some text noting that
+        if text == "":
+            text = "[No notes were included for this test.]"
+        ## create new dictionary entry
+        checkDict[fileTime] = {"deviceNum": deviceNum, "deviceUsed": deviceNumUsedEntry.get(), "laserPos": laserPosEntry.get(), "analogGain": analogGainEntry.get(),
+            "laserVolt": laserVoltEntry.get(), "pmtVolt": pmtVoltEntry.get(), "hvSettings": hvSettingsEntry.get(), "buffSol": buffSolEntry.get(),
+            "fluorophore": fluorophoreEntry.get(), "fluorophoreCon": fluorophoreConEntry.get(), "success": success.get(), "broken": broken.get(),
+            "wrong": wrong.get(), "text": text}
+        ## add other data to the front of the text for printing
+        if deviceNum != "":     # If the line above was uncommented, change this to 'if deviceNum != "000":'
+            text = "[Microfluidic device #" + deviceNum + "]\n" + text
+        if wrong.get() == 1:
+            text = "[I just don't know what went wrong]\n" + text
+        if broken.get() == 1:
+            text = "[Equipment failure]\n" + text
+        if success.get() == 1:
+            text = "[Successful experiment]\n" + text
+        ## Write to the file
+        fNote = open(folderName + 'TestNotes.txt','a')
+        fNote.write("\n\n***" + fileTime + "***\n" + text + "\n")
+        fNote.close()
+        ## Write tags to .json file
+        with open(folderName + 'tags.json', 'w') as fp:
+            json.dump(checkDict, fp)
+        ## Close the window
+        testNotes.destroy()
 
-## This actually runs the prompt
-testNotes.mainloop()
+    ## The submit button
+    submitButton = Button(testNotes, text = "Submit", width = 10, command = submit)
+    submitButton.pack(pady = 10)
+
+    ## This actually runs the prompt
+    testNotes.mainloop()

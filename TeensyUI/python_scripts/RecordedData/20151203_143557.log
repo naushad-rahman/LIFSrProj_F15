@@ -1,0 +1,37 @@
+# Log from 2015-12-3 at 14:36:0
+
+# DSP Processing Report:
+# udsp Version 1.0
+# November 3, 2015
+# DC Processing with Brickwall Threshold Filter Algorithm
+# Designed for sample rate of: 9091 samp/s
+# Filter: Spring Summer Low Pass Filter (spsu_lp_filter_norm)
+# Fluoresce minimum period: 0.05 s
+# Threshold standard deviations: 2
+# Calibration period: 1 s
+
+# Event: timestamp (from teensy)
+High Voltage On: 3563760777
+High Voltage Off: 3590322037
+High Voltage On: 3606134757
+Sample Insertion: 3611849697
+Signal Calibration: 3670368817
+Signal Calibration: 3681135177
+Signal Calibration: 3681665927
+Signal Calibration: 3681829277
+Signal Calibration: 3682068637
+Signal Calibration: 3682508637
+Signal Calibration: 3682509297
+Signal Calibration: 3682813997
+Signal Calibration: 3687441037
+Sample Insertion: 3701778767
+High Voltage Off: 3746652717
+High Voltage On: 3860850427
+Sample Insertion: 3874817567
+Sample Separation: 3993814577
+High Voltage Off: 4010775697
+Start Time: 3555983007
+End Time: 4013132337
+Packets Received: 4155905
+Packets Sent: 4155903.0
+Packets Missed: -2.0 (-4.81243185897e-05%)

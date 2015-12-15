@@ -1,1 +1,78 @@
 This file holds the notes made about the experiment data files.
+
+***20151027_151346***
+[Successful experiment]
+[Microfluidic device #N/A]
+Testing PMT and logging system. This data will be used to run simulation tests. It provides dark current and noise with signal as the XYZ runs between wells filled with fluorophore to show some florecing signal. The details are not included as they are not important at this time
+
+***20151103_140844***
+[Uncertain results]
+[Microfludic device #00A]
+This was part of an in class presentation to Dr. Nordin. The results are uncertain. There may have been a very good signal but further investigation is requred. To better integrate data notes with actual test procedures future tests will include a .log file as well as a .csv that will describe the events of the test procedure
+
+
+***20151106_083803***
+[I just don't know what went wrong]
+[Microfluidic device #00A]
+(Canute running tests on his own)
+
+
+***20151106_100243***
+[I just don't know what went wrong]
+[Microfluidic device #00A]
+(Canute running tests on his own)
+
+
+***20151106_104212***
+[Successful experiment]
+[Microfluidic device #00A]
+Didn't really see any spikes due to rhodamine concentration. (Canute running tests on his own)
+
+
+***20151110_124419***
+[Successful experiment]
+[Microfluidic device #00A]
+Noticed some spikes, especially when the Rhodamine was introduced to the system. Not sure if Rhodamine was flowing because there didn't seem to be any in other wells at the end of the experiment. Also didn't notice any in channel during experiment. After inspecting the MFD after the experiment, I believe 00A may be dead.
+
+
+***20151110_134130***
+[Equipment failure]
+[Microfluidic device #007]
+High Voltage system not working.
+
+
+***20151110_144527***
+[Successful experiment]
+[Microfluidic device #008]
+Saw flourophore. November 10, 2015 between 2 and 3
+
+
+***20151118_140927***
+[Successful experiment]
+[Microfluidic device #00B]
+System practice with Cameron. Ran the full system. Did not notice spike when laser focused on lower channel and separation was run.
+
+
+***20151203_141005***
+test data. No pmt voltage.
+
+
+***20151203_143557***
+[No notes were included for this test.]
+
+
+***20151203_144429***
+separation insertion test. dec 3 2:44. Separation began about 5 Seconds after data collection began.
+
+
+***20151203_145819***
+[No notes were included for this test.]
+
+
+***20151211_142246***
+December 11, presentation. Pre-separation
+
+
+***20151211_143359***
+December 11, Separation
+

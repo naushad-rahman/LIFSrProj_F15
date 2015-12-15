@@ -1,0 +1,6 @@
+-4754:1222:-886
+origin:0:0:0
+crosshair:150:150:-150
+left well:32:-752:0
+separation channel:1000:-388:4
+low separation channel:0:0:0
